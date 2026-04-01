@@ -1,0 +1,61 @@
+body{
+    /* background-image: url('https://img.freepik.com/free-photo/cybersecurity-digital-security-concept_23-2151998498.jpg?semt=ais_hybrid&w=740&q=80') !important;
+    background-size: contain; 
+    background-position: center; */
+     font-family:cursive!important;
+    
+    /* filter: grayscale(50%) !important; */
+}
+
+.blogin{
+ background-image: url('https://img.freepik.com/free-photo/cybersecurity-digital-security-concept_23-2151998498.jpg?semt=ais_hybrid&w=740&q=80') !important;
+    background-size: contain; 
+    height: 100vh;
+    background-position: center;
+}
+.login{
+     background-color: rgba(54, 54, 54, 0.697) !important;
+     border-radius: 30px;
+    color: white;
+    text-align: center;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    margin-top: 130px !important;
+}
+
+  /* .sidebar {
+   
+    height: 100vh;
+   
+  } */
+
+.tab1{
+    overflow: scroll;
+
+
+}
+.dashh1{
+    margin: 320px auto !important;
+    font-size: 70px ;
+    width: 900px;
+     letter-spacing: 8px;
+    background-color: rgba(0, 0, 0, 0.597) !important;
+     border-radius: 30px;
+     color:skyblue;
+     
+}
+
+.addgames{
+    height: auto;background-color: rgba(0, 0, 0, 0.697) !important; border-radius: 30px;
+}
+
+
+.addcontainer{
+    height: 100vh;
+    background-image: url("https://wallpapers.com/images/hd/minimalist-desktop-background-pf886ynnnf3uqrjq.jpg");
+    background-position: center;
+    background-size: cover;
+     background-attachment: fixed;
+      /* overflow: scroll; */
+     overflow-x: hidden;    
+}
