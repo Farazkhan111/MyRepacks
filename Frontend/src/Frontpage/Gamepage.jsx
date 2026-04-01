@@ -2,6 +2,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import url from "./url";
 
 
 export default function Gamepage() {
@@ -15,12 +16,12 @@ export default function Gamepage() {
 
   //  alert(idd);
   useEffect(() => {
-    axios.post("http://localhost:5000/gamepage", { idd })
+    axios.post(url+"/gamepage", { idd })
       .then((res) => {
         // console.log(res.data);
         setGames(res.data);
       })
-    axios.post("http://localhost:5000/comments", { idd })
+    axios.post(url+"/comments", { idd })
       .then((res) => {
         // console.log(res.data);
 
@@ -51,10 +52,10 @@ export default function Gamepage() {
     setComments([newComment, ...com]);
     setName("");
     setText("");
-    axios.post("http://localhost:5000/newcomments", { idd, name, text, date: new Date().toLocaleString() });
+    axios.post(url+"/newcomments", { idd, name, text, date: new Date().toLocaleString() });
   };
   function deleteComment(id) {
-    axios.post("http://localhost:5000/cdel", { id })
+    axios.post(url+"/cdel", { id })
   };
 
   return (

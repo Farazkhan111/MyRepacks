@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import url from './url';
 export default function Popularp() {
   const [tgame, setData] = useState([]);
   const nav=useNavigate();
   useEffect(() => {
     // setData(Trendgames);
-    axios.post("http://localhost:5000/showtrend")
+    axios.post(url+"/showtrend")
       .then((res) => {
         console.log(res.data);
         setData(res.data);
