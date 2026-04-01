@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
 import { useRef } from 'react'
 import axios from 'axios';
+import url from './url';
 export default function Navbar() {
   const bref = useRef();
   const mbtn = useRef();
@@ -12,7 +13,7 @@ export default function Navbar() {
   const [search, setSerach] = useState();
 
   useEffect(() => {
-    axios.post("http://localhost:5000/search")
+    axios.post(url+"/search")
       .then((res) => {
         // console.log(res.data);
         setGames(res.data);

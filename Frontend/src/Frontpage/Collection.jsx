@@ -1,13 +1,13 @@
 import axios from 'axios'
-import React, { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-
+import  { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import url from './url';
 export default function Collection() {
     const [allgames, setGames] = useState([]);
     const [selecvalue, setSval] = useState("AllGames");
     const nav=useNavigate();
     useEffect(() => {
-        axios.get("http://localhost:5000/collection")
+        axios.get(url+"/collection")
             .then((res) => {
                 console.log(res.data);
                 setGames(res.data);

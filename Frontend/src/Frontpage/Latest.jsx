@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import url from './url';
 export default function Latest() {
   const [lgame, setData] = useState([]);
   const nav=useNavigate();
   useEffect(() => {
-    axios.post("http://localhost:5000/showtrend")
+    axios.post(url+"/showtrend")
     .then((res)=>{
       // console.log(res.data.reverse());
       const rev = res.data.reverse();
