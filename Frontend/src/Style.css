@@ -1,0 +1,556 @@
+*{
+  margin: 0;
+  padding: 0;
+}
+body{
+    font-family:cursive!important;
+    background-color:#020612 !important;
+    /* overflow:visible; */
+}
+body::-webkit-scrollbar{
+  display: none !important;
+}
+/* Center brand permanently */
+.brand-center {
+  position: fixed;
+  /* top: 12px; */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1051;
+  position: absolute;
+  white-space: nowrap;
+}
+.navbar{
+    /* box-shadow: 1px 1px 4px black;
+    background-color: none; */
+}
+/* .navbar-nav{
+    /* background-color: none; */
+    
+    .transparent-navbar {
+        background-color: transparent !important;
+        z-index: 1050; /* higher than collapse */   
+    }
+    .mobile-menu {
+        position: fixed;
+        top: 5px; /*height of navbar*/
+        width: 100%;
+        display: inline;
+        z-index: 1040;
+        background-color: rgba(0, 0, 0, 0.597) !important;
+  /* background-color: rgba(0, 0, 0, 0.95); */
+}
+
+.navbar-toggler{
+  /* background-color:#bfeb3b!important; */
+  /* color:white !important; */
+  border: 1px solid orange!important;
+}
+
+#mobileMenu{
+    transition: 1s;
+    margin-top: 50px;
+    
+  
+    
+}
+/* Makes the black icon white */
+.navbar-toggler-icon {
+  filter: invert(1);
+}
+
+
+/* Container for the search that sits at the bottom of the Navbar */
+.search-drop-container {
+  position: absolute;
+  top: 100%;           /* Right below the navbar */
+  /* left: 50%;           Move start point to center */
+  right: -15%;
+  /* height: 400px; */
+  max-height: 400px;
+  overflow: scroll;
+  overflow-x: hidden;
+  /* overflow-y: hidden; */
+  transform: translateX(-50%); /* Pull back by 50% of its own width */
+  width: 30%;          /* Your desired width */
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 999;
+  border-radius: 0 0 10px 10px; /* Optional: rounds the bottom corners */
+}
+
+.search-drop-container::-webkit-scrollbar{
+    display: none;
+}
+
+/* Mobile Responsive: Make it wider on small screens */
+@media (max-width: 768px) {
+  .search-drop-container {
+    width: 70%; 
+     right: -38%;
+  }
+}
+@media (max-width: 450px) {
+  .search-drop-container {
+    width: 90%; 
+     right: -45%;
+  }
+}
+
+
+/* Make the input look clean and responsive */
+.sinput-responsive {
+  width: 100%;
+  max-width: 800px; /* Limits width on desktop */
+  margin: 0 auto;   /* Centers it */
+  border-radius: 5px;
+  border: none;
+  padding: 10px 15px;
+}
+
+/* Ensure the navbar itself allows absolute children to overflow */
+.transparent-navbar {
+  position: relative;
+}
+
+
+.mainbox{
+  
+   height: 100vh;
+    margin-top: -56px;
+}
+.sec1{
+    height: 100vh;
+    background-image: url("https://static.vecteezy.com/system/resources/thumbnails/036/730/928/small_2x/ai-generated-a-man-sitting-at-the-computer-screen-playing-a-game-free-photo.jpg");
+    background-size:cover ;
+    background-position: center;
+    
+    text-align: center;
+    background-attachment: fixed;
+    justify-content: center !important;
+    /* margin-bottom: 80px !important; */
+}
+.sec1s1{
+  
+    padding: 10px;
+    color:white;
+  
+    position: relative;
+    letter-spacing: 4px;
+    background-color: rgba(0, 0, 0, 0.597);
+   
+    top: 300px;
+    
+    
+}
+.trending{
+    /* height: 110vh; */
+    /* background-color: #041849; */
+
+    /* margin-top: 20px !important; */
+    padding-top: 90px !important;
+    background-image: url("https://wallpapers.com/images/hd/high-resolution-gaming-i59azpzf73j6wqgk.jpg");
+    background-attachment: fixed;
+    background-size:cover;
+    background-position: center;
+
+   
+    
+}
+.tdiv1{
+    height: 100px ;
+    letter-spacing: 4px;
+   /* margin-top: -20ps; */
+   /* background-color:non!important; */
+   /* text-shadow: -2px 35px 10px ; */
+
+   
+   
+   
+}
+.th1{
+    line-height: 100px;
+    /* padding-top: 55px; */
+
+}
+
+    .tcard{
+        background-color:#020612 !important;
+        /* height: 300px; */
+        top: -40px;
+        /* width: 100px !important; */
+        /* box-shadow:  0px  0px  20px rgb(179, 21, 21) ; */
+        /* width: 250px; */
+        /* margin-left: 50px; */
+}
+.ldiv1{
+    height: 100px ;
+    letter-spacing: 4px;
+}
+.lh1{
+     line-height: 100px;
+}
+.latest{
+/* padding-top: 90px !important; */
+    /* height: 100vh; */
+    padding-top: 30px !important;
+    background-image: url("https://images.unsplash.com/photo-1593305841991-05c297ba4575?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8Z2FtaW5nfGVufDB8fDB8fHww");
+    background-attachment: fixed;
+    background-size:cover;
+    background-position: center;
+}
+
+.imgcardl{
+    width: 90px !important; 
+    /* width: 100% !important; */
+}
+
+.lcard{
+    top: -10px;
+    background-color: transparent !important;
+    /* background-color:#020612 !important; */
+    /* background-color: rgba(0, 0, 0, 0.697) !important;  */
+    /* box-shadow:  0px  0px  40px cyan ;   */
+    
+}
+.lgcard{
+    background-color: rgba(0, 0, 0, 0.597) !important; 
+    box-shadow:  0px  0px  20px cyan ;
+  }
+  .lgcard:hover{
+    /* background-color: rgba(0, 0, 0, 0.597) !important;  */
+    /* box-shadow:  0px  0px  20px cyan ; */
+    box-shadow: 0 10px 30px rgba(110, 69, 2286, 0.2);
+    /* box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05); */
+}
+
+.newgame{
+    /* height: 100vh; */
+   
+
+}
+.nimgbox{
+    
+ 
+}
+.nimg{
+    
+    /* box-shadow:  0px  0px  50px #00fffb ; */
+    box-shadow:  0px  0px  50px powderblue ;
+    border-radius: 20px;    
+    width: 275px ;
+    
+}
+
+.gabout{
+    line-height: 30px;
+}
+
+.dashboard-wrapper {
+    background-color: #0d0d1a; 
+    min-height: 100vh;
+    padding: 20px;
+}
+
+
+
+
+.game-title {
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+    }
+    /* .game-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(110, 69, 226, 0.2);
+        border: 1px solid rgba(138, 43, 226, 0.4);
+    } */
+    
+    
+.card-image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit:fill;
+    /* background-size: contain; */
+    /* background-position: top; */
+    }
+        .card-image-container {
+            position: relative;
+            height: 180px;
+        }
+    
+ .card-content {
+        padding: 15px;
+        color: white;
+    }
+.game-stats {
+    font-size: 0.8rem;
+    color: #a0a0c0;
+} 
+
+/* Styled Select Dropdown */
+.game-select {
+    background: #1a1a2e;
+    color: white;
+    border: 1px solid #333;
+    padding: 10px 20px;
+    border-radius: 10px;
+    outline: none;
+}
+/* Container to hold the glow and the card */
+.neon-card-container {
+    position: relative;
+    padding: 1px; /* Creates space for the neon border */
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* THE NEON REFLECTION: The blurred light behind the card */
+
+/* THE GLASS CARD */
+.game-card {
+    position: relative;
+    z-index: 2;
+    background: rgba(15, 15, 25, 0.7); /* Deep dark glass */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    overflow: hidden; 
+    padding: 20px;
+}
+
+/* CARD IMAGE NEON DROP-SHADOW */
+.cardimg {
+    width: 100%;
+    height: 200px;
+    object-fit: contain;
+    /* This makes the character look like it's emitting light */
+    filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2));
+    transition: filter 0.3s ease;
+}
+
+/* NEON HOVER STATES */
+.neon-card-container:hover {
+    transform: translateY(-12px) scale(1.03);
+    
+}
+
+.neon-card-container:hover .neon-reflection {
+    opacity: 0.8; /* Intensifies the "reflection" glow */     
+}
+
+.neon-card-container:hover .game-card {
+    border: 1.5px solid rgba(255, 255, 255, 0.4);
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+}
+
+
+
+/* DECORATIVE NEON LINE */
+.neon-line {
+    height: 2px;
+    width: 40px;
+    background: white;
+    margin: 10px auto;
+    box-shadow: 0 0 10px white; /* Neon glow for the line */
+    border-radius: 10px;
+}
+
+.game-title {
+    color: #fff;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); /* Neon text effect */
+    text-align: center;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-top: 15px;
+}
+
+.tcont{
+    margin-top: -75px !important;
+}
+.ttitle{
+    font-size: 12px;
+}
+.pgame:hover{
+    transform: translateY(0) scale(1) !important;
+    /* box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05) !important; */
+}
+.pgame{
+  /* width: 310px !important; */
+}
+
+/* ===== BASE STYLES (DESKTOP) ===== */
+.gameimgf{
+  max-height: 450px !important;
+  width: 100%;
+  object-position: center;
+  /* object-fit:initial; */
+  /* height: 100%; */
+  /* background-position: center;
+  
+  background-size: contain; */
+  /* /* position: relative;  */
+  border-radius: 35px;
+  
+  
+}
+
+.trefl{
+    position: absolute;
+    top: -10px;
+    left: -0px;
+    right: -0px;
+    bottom: -10px;
+    background-size: cover;
+    background-position: center;
+    filter: blur(30px) saturate(1); /* Saturate makes the neon colors pop */
+    opacity: 0.3;
+    z-index: 0;
+    border-radius: 30px;
+    transition: opacity 0.3s ease;
+}
+
+.neon-card-container:hover .trefl {
+    opacity: 0.8; /* Intensifies the "reflection" glow */     
+}
+
+.gameimgbox{
+/* max-height: 550px; */
+position: absolute;
+    top: 10px;
+    left: -0px;
+    right: -0px;
+    bottom: 140px !important;
+    background-size: cover;
+    background-position: center;
+    filter: blur(70px) saturate(2); 
+    opacity: 0.3;
+    z-index: 0;
+    border-radius: 30px;
+    transition: opacity 0.3s ease; 
+}
+/* Default style for large screens (Desktops) */
+.mimage {
+  border-radius: 50%;
+  height: 150px; /* Larger on desktop */
+  width: 150px;
+  object-fit: cover;
+  border: 2px solid #fff;
+  
+}
+
+.gname {
+  font-size: 2.5rem;
+}
+
+.gdesc {
+  font-size: 1rem;
+  line-height: 1.7;
+  opacity: 0.9;
+}
+
+/* Tablets (max-width: 992px) */
+@media (max-width: 992px) {
+  .mimage {
+    height: 100px;
+    width: 100px;
+    
+  }
+  .gname {
+    font-size: 1.8rem;
+  }
+  .dbtn{
+    font-size: 17px !important;
+  }
+
+  .gdesc {
+    font-size: 0.95rem;
+  }
+}
+
+/* Mobile Phones (max-width: 576px) */
+@media (max-width: 576px) {
+  .mimage {
+    height: 70px;
+    width: 70px;
+  }
+  .gname {
+    font-size: 1.2rem;
+    padding-top: 0 !important; /* Removes the top padding on small screens */
+
+  }
+  .dbtn{
+    font-size: 15px !important;
+  }
+  .gdesc {
+    font-size: 0.9rem;
+    text-align: left;
+  }
+}
+@media (max-width: 576px) {
+  .neon-card-container:hover {
+    transform: translateY(0) scale(1);
+    
+}
+
+.neon-card-container:hover .neon-reflection {
+    opacity: 0; /* Intensifies the "reflection" glow */     
+}
+
+.neon-card-container:hover .game-card {
+    border: 1.5px solid rgba(255, 255, 255, 0.4);
+    box-shadow: none;
+}
+.neon-reflection {
+    position: absolute;
+    top: -0px;
+    left: -0px;
+    right: -0px;
+    bottom: -0px;
+    background-size: cover;
+    background-position: center;
+    filter: blur(35px) saturate(2); /* Saturate makes the neon colors pop */
+    opacity: 0.3;
+    z-index: 0;
+    border-radius: 20px;
+    transition: opacity 0.3s ease;
+}
+
+}
+
+.comment-section {
+  max-width: 100%;
+  background: red;
+  color: white;
+  margin: 40px auto;
+  font-family: sans-serif;
+}
+
+.comment-form input,
+.comment-form textarea {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.comment-form button {
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.comment {
+  background: #f5f5f5;
+  padding: 12px;
+  margin-top: 12px;
+  border-radius: 6px;
+}
+
+.comment .date {
+  display: block;
+  /* font-size: 12px; */
+  color: gray;
+}
+
+.comment button {
+  margin-top: 6px;
+  font-size: 10px;
+}
