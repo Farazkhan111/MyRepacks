@@ -3,21 +3,28 @@ import { Link } from 'react-router-dom'
 
 export default function Imgpage1() {
   return (
-    <>
-    <div className="sec1">
-     
-        <div className="  container-fluid">
-          <div className="row ">
-            <div className="col-sm-3"></div>
-            <div className="sec1s1 col-sm-6">
-               <h6 className='fs-5'>Welcome To <span className='text-info'>MyGaMeS</span> </h6>
-           <h1 className='fs-2'><span className='text-info'>Browse</span> Our Popular Games Here</h1>
-           <Link to={"/collection"} className='btn btn-primary btn-lg mt-3'>Browse Now</Link>
-            </div>
-            <div className="col-sm-3"></div>
+    <div className="sec1 d-flex align-items-center justify-content-center">
+      <div className="container">
+        <div className="row justify-content-center text-center">
+          <div className="col-lg-8 sec1s1">
+            <h6 className='welcome-text'>
+              Welcome To <span className='text-info'>MyRePacks</span>
+            </h6>
+
+            <h1 className='main-heading'>
+              <span className='text-info'>Browse</span> Our Popular Games
+            </h1>
+
+            <p className='sub-text'>
+              Discover top repacked games with fast downloads and best performance.
+            </p>
+
+            <Link to="/collection" className='btn browse-btn mt-4'>
+              Browse Now 🚀
+            </Link>
           </div>
         </div>
+      </div>
     </div>
-    </>
   )
 }

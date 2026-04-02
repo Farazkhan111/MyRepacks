@@ -2,124 +2,60 @@ import React, { useEffect, useState } from 'react'
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import url from './url';
+
 export default function Latest() {
   const [lgame, setData] = useState([]);
-  const nav=useNavigate();
+  const nav = useNavigate();
+
   useEffect(() => {
-    axios.post(url+"/showtrend")
-    .then((res)=>{
-      // console.log(res.data.reverse());
-      const rev = res.data.reverse();
-      setData(rev);
-    })
-  },[])
-function showgame(id){
-        // alert(id);
-        nav("/gamepage",{state:id});
-    }
-  var cVal = lgame.length / 3;
-  console.log(cVal)
+    axios.post(url + "/showtrend")
+      .then((res) => {
+        setData(res.data.reverse());
+      })
+  }, [])
+
+  function showgame(id) {
+    nav("/gamepage", { state: id });
+  }
+
+  // ✅ Split into groups of 4 (vertical cards)
+  const groups = [];
+  for (let i = 0; i < 12; i += 4) {
+    groups.push(lgame.slice(i, i + 4));
+  }
+
   return (
     <>
       <div className='ldiv1 text-center'>
-        <h1 className='lh1 text-light'><span className='text-info'>Latest</span> Games</h1>
+        <h1 className='lh1 text-light'>
+          <span className='text-info'>Latest</span> Games
+        </h1>
       </div>
-      <div className="latest container-fluid justify-content-center">
-        <div className="lgames container justify-content-center">
-          <div className="row ">
 
-            <div className="col-12 col-sm-6 col-md-4 col-lg-4 justify-content-center">
-              <div className="card lcard ">
+      <div className="latest container">
+        <div className="row justify-content-center">
 
-              {
-                lgame.map((games, index) => (
-                  
-                  index < 4 ?
-                  <div className="card my-3 lgcard " style={{ cursor: 'pointer' }}  onClick={()=>showgame(games._id)}>
-                    <div className="contanier-fluid">
-                      <div className="row ">
+          {groups.map((group, index) => (
+            <div key={index} className="col-12 col-md-6 col-lg-4 d-flex justify-content-center my-4">
 
-                    <div className="col-4 col-sm-4 col-md-5  col-lg-2   ">
+              <div className="vertical-card">
 
-                      <img src={games.image} alt="" className='rounded' height={"120px"} width={"100px"} />
-                    </div>
-                    <div className="col-8 col-sm-8 col-md-7   col-lg-10  text-center  ">
-                      <h5 className=' text-light fs-6 mt-4 pt-3 '>{games.name}</h5>
-                    </div>
-                      
-                    </div>
-                      </div>
+                {group.map((game) => (
+                  <div
+                    key={game._id}
+                    className="vertical-item"
+                    onClick={() => showgame(game._id)}
+                  >
+                    <img src={game.image} alt="" />
+                    <h6>{game.name}</h6>
+                  </div>
+                ))}
 
-                    </div>
-                    : <></>
-                    
-                  ))
-                }
-                </div>
-            </div>
-            <div className="col-12 col-sm-6 col-md-4 col-lg-4  justify-content-center">
-                <div className="card lcard">
-
-              {
-                lgame.map((games, index) => (
-
-
-                  index > 3 && index < 8 ?
-                    <div className="card my-3 lgcard" style={{ cursor: 'pointer' }}  onClick={()=>showgame(games._id)}>
-                      <div className="contanier-fluid">
-                        <div className="row  ">
-
-                      <div className="col-4 col-sm-4 col-md-5 col-lg-2   ">
-
-                      <img src={games.image} alt="" className='rounded' height={"120px"} width={"100px"} />
-                      </div>
-                      <div className="col-8 col-sm-8 col-md-7   col-lg-10  text-center  ">
-                      <h5 className=' text-light fs-6 mt-4 pt-3 '>{games.name}</h5>
-                    </div>
-                        
-                      </div>
-                        </div>
-                    </div>
-
-                    : <></>
-                ))
-              }
               </div>
+
             </div>
-            <div className="col-12 col-sm-12 col-md-4 col-lg-4  justify-content-center">
-                <div className="card lcard">
+          ))}
 
-              {
-                lgame.map((games, index) => (
-
-
-                  index > 7 && index < 12 ?
-                    <div className="card my-3 lgcard" style={{ cursor: 'pointer' }}  onClick={()=>showgame(games._id)}>
-                      <div className="contanier-fluid">
-                        <div className="row ">
-
-                      <div className="col-4 col-sm-4 col-md-5 col-lg-2   ">
-
-                      <img src={games.image} alt="" className='rounded' height={"120px"} width={"100px"} />
-                      </div>
-                      <div className="col-8 col-sm-8 col-md-7   col-lg-10  text-center  ">
-                      <h5 className=' text-light fs-6 mt-4 pt-3 '>{games.name}</h5>
-                    </div>
-                      
-                      </div>
-                        </div>
-                    </div>
-
-                    : <></>
-                ))
-              }
-              </div>
-            </div>
-
-
-
-
-          </div>
         </div>
       </div>
     </>
