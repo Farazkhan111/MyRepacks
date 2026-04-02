@@ -22,7 +22,7 @@ export default function AddGames() {
             nav("/");
 
         }
-    }, [])
+    }, [nav])
     function addgame() {
         axios.post("https://myrepacks.onrender.com/add", { gname, gimage, gdes, gcat, gfimage, glink, gtrend, gvideo, othername });
     }

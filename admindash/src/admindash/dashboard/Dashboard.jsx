@@ -13,7 +13,7 @@ export default function Dashboard() {
       else{
         nav("/");
       }
-    })
+    },[nav])
   return (
     <div className="container-fluid">
         <div className="row">
