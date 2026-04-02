@@ -21,7 +21,7 @@ export default function Edit() {
     const nav = useNavigate();
 
     useEffect(() => {
-        axios.post("http://localhost:5000/edit", { id })
+        axios.post("https://myrepacks.onrender.com/edit", { id })
             .then((res) => {
                 setName(res.data.name);
                 setImage(res.data.image);
@@ -36,7 +36,7 @@ export default function Edit() {
     }, [id])
 
     function update() {
-        axios.post("http://localhost:5000/gupdate", { id, gname, gimage, gdes, gcat, gfimage, glink, gvideo, othername })
+        axios.post("https://myrepacks.onrender.com/gupdate", { id, gname, gimage, gdes, gcat, gfimage, glink, gvideo, othername })
             .then(() => {
                 nav("/show");
             })

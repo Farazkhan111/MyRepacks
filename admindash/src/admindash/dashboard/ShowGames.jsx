@@ -10,7 +10,7 @@ export default function ShowGames() {
     const [ttot,setTtot]=useState();
     const nav = useNavigate();
     useEffect(() => {
-        axios.get("http://localhost:5000/show")
+        axios.get("https://myrepacks.onrender.com/show")
             .then((res) => {
                 setGames(res.data);
                 let count=0;
@@ -40,7 +40,7 @@ export default function ShowGames() {
             trending = 'Trending';
             e.target.style.backgroundColor = "Green";
 
-            axios.post("http://localhost:5000/tupdate", { i, trending });
+            axios.post("https://myrepacks.onrender.com/tupdate", { i, trending });
             }
             else{
                 alert('Cant Add more')
@@ -51,7 +51,7 @@ export default function ShowGames() {
             e.target.innerHTML = "Not Trending";
             e.target.style.backgroundColor = "Red";
             trending = 'Not Trending';
-            axios.post("http://localhost:5000/tupdate", { i, trending });
+            axios.post("https://myrepacks.onrender.com/tupdate", { i, trending });
         }
     }
 
@@ -60,7 +60,7 @@ export default function ShowGames() {
             nav('/edit', { state: id })
         }
         function del(id) {
-            axios.post("http://localhost:5000/del", { id })
+            axios.post("https://myrepacks.onrender.com/del", { id })
         }
 return (
             <div className="container-fluid">
