@@ -78,7 +78,7 @@ export default function Navbar() {
 
           {/* CENTER: Brand (All Devices, Fixed) */}
           <Link to="/" className="navbar-brand brand-center text-light">
-            MyBrand
+            MyRepacks
           </Link>
 
           {/* RIGHT: Icons */}
