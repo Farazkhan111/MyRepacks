@@ -1,10 +1,10 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Login from './Login/Login';
-import Dashboard from './dashboard/Dashboard';
-import AddGames from './dashboard/AddGames';
-import ShowGames from './dashboard/ShowGames';
-import Edit from './dashboard/Edit';
+import Login from './admindash/Login/Login';
+import Dashboard from './admindash/dashboard/Dashboard';
+import AddGames from './admindash/dashboard/AddGames';
+import ShowGames from './admindash/dashboard/ShowGames';
+import Edit from './admindash/dashboard/Edit';
 export default function Browser() {
   return (
      <BrowserRouter>
