@@ -63,64 +63,90 @@ export default function ShowGames() {
             axios.post("https://myrepacks.onrender.com/del", { id })
         }
 return (
-            <div className="container-fluid">
-                <div className="row">
-                    <div className="col-sm-2 bg-dark Sidebar">
-                        <Sidebar />
-                    </div>
-                    <div className="col-sm-10 addcontainer text-center">
-                        <div className="container mt-4">
-                            <div className="row">
-                                <div className="col-sm-1"></div>
-                                <div className="col-sm-10 showgame">
-                                    <h2 className="text-center text-light mb-4 ">Show Games</h2>
+    <>
+        {/* Sidebar + Navbar */}
+        <Sidebar />
 
-                                    <table className="tab1 table table-dark table-bordered table-sm table-hover table-responsive">
-                                        <thead>
-                                            <tr>
+        {/* Main Content */}
+        <div className="main-content addcontainer">
+            <div className="container mt-4">
+                <div className="row justify-content-center">
 
-                                                <th>id</th>
-                                                <th>Image</th>
-                                                <th>Game Name</th>
-                                                {/* <th>Description</th> */}
-                                                <th>Category</th>
-                                                <th>Trending</th>
-                                                <th>Edit</th>
-                                                <th>Delete</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {allgames.map((game, index) => (
-                                                // Added 'return' via () and added a unique key
-                                                <tr key={game._id || index}>
-                                                    <td className='pt-5 '>{index + 1}</td>
-                                                    <td >
-                                                        <img src={game.image} height="100px" alt={game.name} />
-                                                    </td >
-                                                    <td className='pt-5 '>{game.name}</td>
-                                                    {/* <td>{game.description}</td> */}
-                                                    <td className='pt-5'>{game.category}</td>
-                                                    <td>
-                                                        <button className={`btn px-2 mt-4 ${game.trending === "Trending" ? 'btn-success' : 'btn-danger'}`} onClick={(e) => trend(e, game._id)}>
-                                                            {game.trending}</button>
-                                                    </td>
-                                                    <td>
-                                                        <button className="btn btn-warning px-2 mt-4" onClick={() => edit(game._id)}>Edit</button>
-                                                    </td>
-                                                    <td>
-                                                        <button className="btn btn-danger px-2 mt-4" onClick={() => del(game._id)}>Delete</button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div className="col-sm-1"></div>
-                            </div>
+                    <div className="col-lg-10 col-md-11 showgame">
+                        <h2 className="text-center text-light mb-4">Show Games</h2>
+
+                        <div className="table-responsive">
+                            <table className="table table-dark table-bordered table-hover text-center">
+
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Image</th>
+                                        <th>Name</th>
+                                        <th>Category</th>
+                                        <th>Trending</th>
+                                        <th>Edit</th>
+                                        <th>Delete</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {allgames.map((game, index) => (
+                                        <tr key={game._id || index}>
+                                            
+                                            <td className="align-middle">{index + 1}</td>
+
+                                            <td>
+                                                <img 
+                                                    src={game.image} 
+                                                    alt={game.name} 
+                                                    style={{ height: "80px", borderRadius: "10px" }} 
+                                                />
+                                            </td>
+
+                                            <td className="align-middle">{game.name}</td>
+
+                                            <td className="align-middle">{game.category}</td>
+
+                                            <td>
+                                                <button 
+                                                    className={`btn mt-2 ${game.trending === "Trending" ? 'btn-success' : 'btn-danger'}`}
+                                                    onClick={(e) => trend(e, game._id)}
+                                                >
+                                                    {game.trending}
+                                                </button>
+                                            </td>
+
+                                            <td>
+                                                <button 
+                                                    className="btn btn-warning mt-2"
+                                                    onClick={() => edit(game._id)}
+                                                >
+                                                    Edit
+                                                </button>
+                                            </td>
+
+                                            <td>
+                                                <button 
+                                                    className="btn btn-danger mt-2"
+                                                    onClick={() => del(game._id)}
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
+
+                                        </tr>
+                                    ))}
+                                </tbody>
+
+                            </table>
                         </div>
+
                     </div>
+
                 </div>
             </div>
-        )
-
+        </div>
+    </>
+)
 }

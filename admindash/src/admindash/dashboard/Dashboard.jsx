@@ -15,16 +15,18 @@ export default function Dashboard() {
       }
     },[nav])
   return (
-    <div className="container-fluid">
-        <div className="row">
-            <div className="col-sm-2 bg-dark">
-                    <Sidebar/>        
-            </div> 
-             <div className="col-sm-10 addcontainer ">
-                
-                <h1 className=" dashh1 text-center " >Welcome {username}</h1>
-            </div>
+    <>
+        {/* Sidebar + Navbar */}
+        <Sidebar />
+
+        {/* Main Content */}
+        <div className="main-content addcontainer d-flex align-items-center justify-content-center">
+
+            <h1 className="dashh1 text-center">
+                Welcome {username}
+            </h1>
+
         </div>
-    </div>
-  )
+    </>
+);
 }
