@@ -23,11 +23,6 @@ body{
     margin-top: 130px !important;
 }
 
-  /* .sidebar {
-   
-    height: 100vh;
-   
-  } */
 
 .tab1{
     overflow: scroll;
@@ -36,7 +31,7 @@ body{
 }
 .dashh1{
     margin: 320px auto !important;
-    font-size: 70px ;
+    font-size: 50px ;
     width: 900px;
      letter-spacing: 8px;
     background-color: rgba(0, 0, 0, 0.597) !important;
@@ -58,4 +53,38 @@ body{
      background-attachment: fixed;
       /* overflow: scroll; */
      overflow-x: hidden;    
+}
+/* DESKTOP SIDEBAR */
+.sidebar {
+    width: 240px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+/* MAIN CONTENT */
+.main-content {
+    margin-left: 240px;
+}
+
+/* MOBILE MENU */
+.mobile-menu {
+    position: absolute;
+    top: 56px;
+    left: 0;
+    width: 100%;
+    display: none;
+    z-index: 1000;
+}
+
+.mobile-menu.show {
+    display: block;
+}
+
+/* REMOVE SIDEBAR SPACE ON SMALL SCREENS */
+@media (max-width: 992px) {
+    .main-content {
+        margin-left: 0;
+    }
 }

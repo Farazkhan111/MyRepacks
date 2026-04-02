@@ -60,62 +60,120 @@ export default function Edit() {
         setOthername(othername.filter((_, index) => index !== indexToRemove));
     };
 
-    return (
-        <div className="container-fluid addcontainer ">
-            <div className="row">
-                <div className="col-sm-2 bg-dark">
-                    <Sidebar />
-                </div>
-                <div className="col-sm-10 addcontainer pt-5 text-center">
-                    <div className=" container mt-4 ">
-                        <div className="row ">
-                            <div className="col-sm-3"></div>
-                            <div className="col-sm-6 addgames" >
-                                <h2 className="text-center text-light mt-4 ">EDIT GAMES</h2>
-                                <form className="text-center px-5" >
-                                    <input className="form-control mt-5" type="text" value={gname} placeholder='Enter Game Name' onChange={(e) => setName(e.target.value)} />
-                                    <input className="form-control mt-5" type="text" value={gimage} onChange={(e) => setImage(e.target.value)} placeholder='Enter Game Image link' />
-                                    <input className="form-control mt-5" type="text" value={gfimage} onChange={(e) => setFimage(e.target.value)} placeholder='Enter Game FImage link' />
-                                    <input className="form-control mt-5" type="text" value={gvideo} onChange={(e) => setVideo(e.target.value)} placeholder='Enter Game Video link' />
+   return (
+    <>
+        {/* Sidebar + Navbar */}
+        <Sidebar />
 
-                                    {/* VISUAL ARRAY INPUT START */}
-                                    <div className="form-control mt-5 d-flex flex-wrap align-items-center" style={{ minHeight: '45px', textAlign: 'left' }}>
-                                        {othername.map((name, index) => (
-                                            <span key={index} className="badge bg-primary d-flex align-items-center me-2 my-1">
-                                                {name}
-                                                <button type="button" onClick={() => removeName(index)} className="btn-close btn-close-white ms-2" style={{ fontSize: '0.5rem' }}></button>
-                                            </span>
-                                        ))}
-                                        <input 
-                                            type="text" 
-                                            value={currentAlias} 
-                                            onChange={(e) => setCurrentAlias(e.target.value)} 
-                                            onKeyDown={handleAddName} 
-                                            placeholder='Add names...' 
-                                            style={{ border: 'none', outline: 'none', flexGrow: 1, minWidth: '100px' }} 
-                                        />
-                                    </div>
-                                    {/* VISUAL ARRAY INPUT END */}
+        {/* Main Content */}
+        <div className="main-content addcontainer pt-4">
+            <div className="container mt-4">
+                <div className="row justify-content-center">
 
-                                    <textarea className="form-control mt-5" value={gdes} onChange={(e) => setDes(e.target.value)} placeholder="Enter Game description" />
+                    <div className="col-lg-6 col-md-10 addgames text-center">
+                        <h2 className="text-light mt-4">EDIT GAME</h2>
 
-                                    <select name="Gcat" required onChange={(e) => setCat(e.target.value)} className='form-select mt-5' >
-                                        <option value={gcat}>{gcat}</option>
-                                        <option value="Roleplay">Roleplay</option>
-                                        <option value="Simulation">Simulation</option>
-                                        <option value="Sports">Sports</option>
-                                    </select>
-                                    
-                                    <input type="text" className="form-control mt-5" placeholder='Download Link here ' value={glink} onChange={(e) => setLink(e.target.value)} />
-                                    
-                                    <button type='button' className="btn btn-primary mt-5 mb-3 btn-lg px-5" onClick={() => update()}>Update</button>
-                                </form>
+                        {/* ✅ use form submit */}
+                        <form className="px-4" onSubmit={(e) => {
+                            e.preventDefault();
+                            update();
+                        }}>
+
+                            <input
+                                className="form-control mt-4"
+                                type="text"
+                                value={gname}
+                                placeholder="Enter Game Name"
+                                onChange={(e) => setName(e.target.value)}
+                            />
+
+                            <input
+                                className="form-control mt-4"
+                                type="text"
+                                value={gimage}
+                                placeholder="Enter Game Image link"
+                                onChange={(e) => setImage(e.target.value)}
+                            />
+
+                            <input
+                                className="form-control mt-4"
+                                type="text"
+                                value={gfimage}
+                                placeholder="Enter Game FImage link"
+                                onChange={(e) => setFimage(e.target.value)}
+                            />
+
+                            <input
+                                className="form-control mt-4"
+                                type="text"
+                                value={gvideo}
+                                placeholder="Enter Game Video link"
+                                onChange={(e) => setVideo(e.target.value)}
+                            />
+
+                            {/* Alias Input */}
+                            <div className="form-control mt-4 d-flex flex-wrap align-items-center">
+                                {othername.map((name, index) => (
+                                    <span key={index} className="badge bg-primary me-2 my-1 d-flex align-items-center">
+                                        {name}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeName(index)}
+                                            className="btn-close btn-close-white ms-2"
+                                            style={{ fontSize: '0.5rem' }}
+                                        ></button>
+                                    </span>
+                                ))}
+
+                                <input
+                                    type="text"
+                                    value={currentAlias}
+                                    onChange={(e) => setCurrentAlias(e.target.value)}
+                                    onKeyDown={handleAddName}
+                                    placeholder="Add names..."
+                                    style={{ border: 'none', outline: 'none', flexGrow: 1 }}
+                                />
                             </div>
-                            <div className="col-sm-3"></div>
-                        </div>
+
+                            <textarea
+                                className="form-control mt-4"
+                                value={gdes}
+                                placeholder="Enter Game description"
+                                onChange={(e) => setDes(e.target.value)}
+                            />
+
+                            <select
+                                className="form-select mt-4"
+                                value={gcat}
+                                onChange={(e) => setCat(e.target.value)}
+                            >
+                                <option value="">Select Category</option>
+                                <option value="Roleplay">Roleplay</option>
+                                <option value="Simulation">Simulation</option>
+                                <option value="Sports">Sports</option>
+                            </select>
+
+                            <input
+                                type="text"
+                                className="form-control mt-4"
+                                placeholder="Download Link here"
+                                value={glink || ""}
+                                onChange={(e) => setLink(e.target.value)}
+                            />
+
+                            <button
+                                type="submit"
+                                className="btn btn-primary mt-4 mb-4 btn-lg px-5"
+                            >
+                                Update
+                            </button>
+
+                        </form>
                     </div>
+
                 </div>
             </div>
         </div>
-    )
+    </>
+);
 }
