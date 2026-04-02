@@ -1,49 +1,61 @@
-import axios from 'axios';
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom';
+import axios from "axios";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-    const [username,setUser]=useState();
-    const [password,setPass]=useState();
-    const nav=useNavigate();
-    function log(){
-        axios.post("https://myrepacks.onrender.com/login", {username , password})
-        .then((result)=>{
-            // console.log(result.data);
-           if (result.data === "UserNot") {
-                    alert("User not found");
-                }
-                else if (result.data === "PassNot") {
-                    alert("Password not match");
-                }
-                else{
-                    localStorage.setItem("admin",result.data.username);
-                    nav("/dashboard");
-                }
-            
-        })
+  const [username, setUser] = useState("");
+  const [password, setPass] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const nav = useNavigate();
+
+  function log() {
+    if (!username || !password) {
+      alert("Please fill all fields");
+      return;
     }
+
+    setLoading(true);
+
+    axios
+      .post("https://myrepacks.onrender.com/login", { username, password })
+      .then((result) => {
+        if (result.data === "UserNot") {
+          alert("User not found");
+        } else if (result.data === "PassNot") {
+          alert("Incorrect password");
+        } else {
+          localStorage.setItem("admin", result.data.username);
+          nav("/dashboard");
+        }
+      })
+      .catch(() => alert("Server error"))
+      .finally(() => setLoading(false));
+  }
+
   return (
-        <div className="blogin">
-        <div class="container-fluid " >
-        <div class="row pt-5">
-        
-            <div class="col-sm-4"></div>
-            <div class="col-sm-4  login ">
-                
-                <h1 class="mt-5 text-center text-info ">Admin Login</h1>
-               
-               
-                     <input type="text" class="form-control my-5" placeholder="Enter Your username" name="username" onChange={(e)=>setUser(e.target.value)} value={username} />
-                     <input type="password" class="form-control my-5" placeholder="Enter the password" name="password" onChange={(e)=>setPass(e.target.value)} value={password}/>
-                    <button class="btn btn-primary btn-lg px-5 text-light mb-3" onClick={log}>Login</button>
-              
-                </div>
-       
-            <div class="col-sm-4"></div>
-        </div>
-     </div>
- </div>
-     
-    )
+    <div className="blogin">
+      <div className="login-card">
+        <h2 className="title">Admin Login</h2>
+
+        <input
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUser(e.target.value)}
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPass(e.target.value)}
+        />
+
+        <button onClick={log} disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
+        </button>
+      </div>
+    </div>
+  );
 }

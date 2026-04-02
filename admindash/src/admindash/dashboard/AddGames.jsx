@@ -1,176 +1,138 @@
-import React, { useEffect, useState } from 'react'
-import Sidebar from './Sidebar'
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useEffect, useState } from "react";
+import Sidebar from "./Sidebar";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
+
 export default function AddGames() {
-    const [gname, setName] = useState();
-    const [gimage, setImage] = useState();
-    const [glink, setLink] = useState();
-    const [gfimage, setFimage] = useState();
-    const [gdes, setDes] = useState();
-    const [gcat, setCat] = useState();
-    const [gvideo, setVideo] = useState("");
-    const [othername, setOthername] = useState([]);
-    const [gtrend, setTrend] = useState();
-    const [currentAlias, setCurrentAlias] = useState("");
-    const nav = useNavigate();
-    useEffect(() => {
-        const user = localStorage.getItem("admin");
-        if (user) {
+  const [gname, setName] = useState("");
+  const [gimage, setImage] = useState("");
+  const [glink, setLink] = useState("");
+  const [gfimage, setFimage] = useState("");
+  const [gdes, setDes] = useState("");
+  const [gcat, setCat] = useState("");
+  const [gvideo, setVideo] = useState("");
+  const [othername, setOthername] = useState([]);
+  const [gtrend, setTrend] = useState("");
+  const [currentAlias, setCurrentAlias] = useState("");
 
-        }
-        else {
-            nav("/");
+  const nav = useNavigate();
 
-        }
-    }, [nav])
-    function addgame(e) {
-        e.preventDefault(); // 🚀 important
+  useEffect(() => {
+    const user = localStorage.getItem("admin");
+    if (!user) nav("/");
+  }, [nav]);
 
-        axios.post("https://myrepacks.onrender.com/add", {
-            gname, gimage, gdes, gcat, gfimage, glink, gtrend, gvideo, othername
-        })
-            .then(res => {
-                console.log(res.data);
-                alert("Game added successfully");
-            })
-            .catch(err => {
-                console.log(err);
-            });
+  function addgame(e) {
+    e.preventDefault();
+    axios
+      .post("https://myrepacks.onrender.com/add", {
+        gname,
+        gimage,
+        gdes,
+        gcat,
+        gfimage,
+        glink,
+        gtrend,
+        gvideo,
+        othername,
+      })
+      .then(() => alert("Game added successfully"))
+      .catch(() => alert("Error adding game"));
+  }
+
+  const handleAddName = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (currentAlias.trim() && !othername.includes(currentAlias)) {
+        setOthername([...othername, currentAlias.trim()]);
+        setCurrentAlias("");
+      }
     }
-    const handleAddName = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (currentAlias.trim()) {
-                // Add to array only if it doesn't already exist
-                if (!othername.includes(currentAlias.trim())) {
-                    setOthername([...othername, currentAlias.trim()]);
-                }
-                setCurrentAlias("");
-            }
-        }
-    };
-    const removeName = (indexToRemove) => {
-        setOthername(othername.filter((_, index) => index !== indexToRemove));
-    };
- 
-   return (
+  };
+
+  const removeName = (i) => {
+    setOthername(othername.filter((_, index) => index !== i));
+  };
+
+  return (
     <>
-        {/* Sidebar + Navbar */}
-        <Sidebar />
+      <Sidebar />
 
-        {/* Main Content */}
-        <div className="main-content addcontainer">
-            <div className="container mt-4">
-                <div className="row justify-content-center">
+      <div className="addgames-main-content">
+        <div className="addgames-form-container">
+          <h2>🎮 Add New Game</h2>
 
-                    <div className="col-lg-6 col-md-10 addgames text-center">
-                        <h2 className="text-light mt-4">ADD GAMES</h2>
+          <form onSubmit={addgame}>
+            <input
+              placeholder="Game Name"
+              value={gname}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <input
+              placeholder="Game Image URL"
+              value={gimage}
+              onChange={(e) => setImage(e.target.value)}
+            />
+            <input
+              placeholder="Full Image URL"
+              value={gfimage}
+              onChange={(e) => setFimage(e.target.value)}
+            />
+            <input
+              placeholder="Game Video URL"
+              value={gvideo}
+              onChange={(e) => setVideo(e.target.value)}
+            />
 
-                        <form className="px-4" onSubmit={addgame}>
+            {/* Alias */}
+            <div className="addgames-alias-box">
+              {othername.map((name, i) => (
+                <span key={i} className="addgames-tag">
+                  {name}
+                  <button type="button" onClick={() => removeName(i)}>
+                    ×
+                  </button>
+                </span>
+              ))}
 
-                            <input
-                                className="form-control mt-4"
-                                type="text"
-                                placeholder="Enter Game name"
-                                value={gname || ""}
-                                onChange={(e) => setName(e.target.value)}
-                            />
-
-                            <input
-                                className="form-control mt-4"
-                                type="text"
-                                placeholder="Enter Game Image link"
-                                value={gimage || ""}
-                                onChange={(e) => setImage(e.target.value)}
-                            />
-
-                            <input
-                                className="form-control mt-4"
-                                type="text"
-                                placeholder="Enter Game fImage link"
-                                value={gfimage || ""}
-                                onChange={(e) => setFimage(e.target.value)}
-                            />
-
-                            <input
-                                className="form-control mt-4"
-                                type="text"
-                                placeholder="Enter Game video link"
-                                value={gvideo}
-                                onChange={(e) => setVideo(e.target.value)}
-                            />
-
-                            {/* Alias Input */}
-                            <div className="form-control mt-4 d-flex flex-wrap align-items-center">
-                                {othername.map((name, index) => (
-                                    <span key={index} className="badge bg-primary me-2 my-1 d-flex align-items-center">
-                                        {name}
-                                        <button
-                                            type="button"
-                                            onClick={() => removeName(index)}
-                                            className="btn-close btn-close-white ms-2"
-                                            style={{ fontSize: '0.5rem' }}
-                                        ></button>
-                                    </span>
-                                ))}
-
-                                <input
-                                    type="text"
-                                    value={currentAlias}
-                                    onChange={(e) => setCurrentAlias(e.target.value)}
-                                    onKeyDown={handleAddName}
-                                    placeholder="Add names..."
-                                    style={{ border: 'none', outline: 'none', flexGrow: 1 }}
-                                />
-                            </div>
-
-                            <textarea
-                                className="form-control mt-4"
-                                placeholder="Enter Game description"
-                                value={gdes || ""}
-                                onChange={(e) => setDes(e.target.value)}
-                            />
-
-                            <select
-                                className="form-select mt-4"
-                                onChange={(e) => setCat(e.target.value)}
-                            >
-                                <option>Select Category</option>
-                                <option value="Roleplay">Roleplay</option>
-                                <option value="Simulation">Simulation</option>
-                                <option value="Sports">Sports</option>
-                            </select>
-
-                            <select
-                                className="form-select mt-4"
-                                onChange={(e) => setTrend(e.target.value)}
-                            >
-                                <option>Select Trending</option>
-                                <option value="Not Trending">Not Trending</option>
-                                <option value="Trending">Trending</option>
-                            </select>
-
-                            <input
-                                type="text"
-                                className="form-control mt-4"
-                                placeholder="Download Link here"
-                                value={glink || ""}
-                                onChange={(e) => setLink(e.target.value)}
-                            />
-
-                            <button
-                                type="submit"
-                                className="btn btn-primary mt-4 mb-4 btn-lg px-5"
-                            >
-                                Submit
-                            </button>
-
-                        </form>
-                    </div>
-
-                </div>
+              <input
+                placeholder="Add aliases..."
+                value={currentAlias}
+                onChange={(e) => setCurrentAlias(e.target.value)}
+                onKeyDown={handleAddName}
+              />
             </div>
+
+            <textarea
+              placeholder="Game Description"
+              value={gdes}
+              onChange={(e) => setDes(e.target.value)}
+            />
+
+            <select onChange={(e) => setCat(e.target.value)}>
+              <option>Select Category</option>
+              <option>Roleplay</option>
+              <option>Simulation</option>
+              <option>Sports</option>
+            </select>
+
+            <select onChange={(e) => setTrend(e.target.value)}>
+              <option>Select Trending</option>
+              <option>Trending</option>
+              <option>Not Trending</option>
+            </select>
+
+            <input
+              placeholder="Download Link"
+              value={glink}
+              onChange={(e) => setLink(e.target.value)}
+            />
+
+            <button type="submit">🚀 Add Game</button>
+          </form>
         </div>
+      </div>
     </>
-)}
+  );
+}

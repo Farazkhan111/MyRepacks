@@ -1,90 +1,1052 @@
-body{
-    /* background-image: url('https://img.freepik.com/free-photo/cybersecurity-digital-security-concept_23-2151998498.jpg?semt=ais_hybrid&w=740&q=80') !important;
-    background-size: contain; 
-    background-position: center; */
-     font-family:cursive!important;
-    
-    /* filter: grayscale(50%) !important; */
+/* 🔷 RESET */
+body {
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  overflow-x: hidden;
+    margin: 0;
+  font-family: 'Poppins', sans-serif;
+  overflow-x: hidden;
+  background: #0f111a !important; /* Dark page background */
 }
 
-.blogin{
- background-image: url('https://img.freepik.com/free-photo/cybersecurity-digital-security-concept_23-2151998498.jpg?semt=ais_hybrid&w=740&q=80') !important;
-    background-size: contain; 
-    height: 100vh;
-    background-position: center;
-}
-.login{
-     background-color: rgba(54, 54, 54, 0.697) !important;
-     border-radius: 30px;
-    color: white;
-    text-align: center;
-    letter-spacing: 5px;
-    text-transform: uppercase;
-    margin-top: 130px !important;
-}
+/* 🔷 BACKGROUND */
+.blogin {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 
+  background: linear-gradient(
+      rgba(0, 0, 0, 0.6),
+      rgba(0, 0, 0, 0.8)
+    ),
+    url("https://img.freepik.com/free-photo/cybersecurity-digital-security-concept_23-2151998498.jpg");
 
-.tab1{
-    overflow: scroll;
-
-
-}
-.dashh1{
-    margin: 320px auto !important;
-    font-size: 50px ;
-    width: 900px;
-     letter-spacing: 8px;
-    background-color: rgba(0, 0, 0, 0.597) !important;
-     border-radius: 30px;
-     color:skyblue;
-     
+  background-size: cover;
+  background-position: center;
 }
 
-.addgames{
-    height: auto;background-color: rgba(0, 0, 0, 0.697) !important; border-radius: 30px;
+/* 🔷 LOGIN CARD */
+.login-card {
+  width: 90%;
+  max-width: 350px;
+  padding: 40px;
+
+  backdrop-filter: blur(15px);
+  background: rgba(255, 255, 255, 0.08);
+
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+
+  text-align: center;
+  color: white;
+  animation: fadeIn 0.8s ease;
 }
 
-
-.addcontainer{
-    height: 100vh;
-    background-image: url("https://wallpapers.com/images/hd/minimalist-desktop-background-pf886ynnnf3uqrjq.jpg");
-    background-position: center;
-    background-size: cover;
-     background-attachment: fixed;
-      /* overflow: scroll; */
-     overflow-x: hidden;    
+/* INPUT */
+.login-card input {
+  width: 100%;
+  padding: 12px;
+  margin: 12px 0;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.2);
+  color: white;
 }
-/* DESKTOP SIDEBAR */
+
+/* BUTTON */
+.login-card button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 20px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  color: white;
+  transition: 0.3s;
+}
+
+.login-card button:hover {
+  transform: scale(1.05);
+}
+
+/* 🔷 SIDEBAR */
 .sidebar {
-    width: 240px;
-    height: 100vh;
-    position: fixed;
-    top: 0;
-    left: 0;
+  width: 250px;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(10px);
+
+  color: white;
+  padding: 20px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  transition: 0.3s;
+  z-index: 1001;
 }
 
-/* MAIN CONTENT */
+/* LOGO */
+.sidebar .logo {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+/* MENU */
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar ul li {
+  margin: 15px 0;
+}
+
+.sidebar ul li a {
+  text-decoration: none;
+  color: #ccc;
+  padding: 10px 15px;
+  display: block;
+  border-radius: 10px;
+}
+
+.sidebar ul li a:hover,
+.sidebar ul li a.active {
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  color: white;
+}
+
+/* LOGOUT */
+.logout {
+  background: red;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  color: white;
+}
+
+/* 🔷 TOPBAR (hidden desktop) */
+.topbar {
+  display: none;
+}
+
+/* 🔷 MAIN CONTENT (FIXED) */
 .main-content {
-    margin-left: 240px;
+  margin-left: 250px;
+  min-height: 100vh;
+  padding: 30px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-/* MOBILE MENU */
-.mobile-menu {
-    position: absolute;
-    top: 56px;
-    left: 0;
-    width: 100%;
-    display: none;
-    z-index: 1000;
+/* 🔷 OVERLAY */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  background: rgba(0,0,0,0.5);
+  display: none;
+  z-index: 1000;
 }
 
-.mobile-menu.show {
-    display: block;
+.overlay.show {
+  display: block;
 }
 
-/* REMOVE SIDEBAR SPACE ON SMALL SCREENS */
+/* 🔷 DASHBOARD CARD */
+.welcome-card {
+  width: 100%;
+  max-width: 500px;
+  padding: 30px;
+
+  text-align: center;
+
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(15px);
+
+  border-radius: 20px;
+}
+
+/* 🔷 FORM */
+.form-container {
+  width: 100%;
+  max-width: 700px;
+  padding: 30px;
+
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(15px);
+
+  border-radius: 20px;
+}
+
+.form-container input,
+.form-container textarea,
+.form-container select {
+  width: 100%;
+  padding: 12px;
+  margin-top: 15px;
+
+  border-radius: 10px;
+  border: none;
+
+  background: rgba(255,255,255,0.15);
+  color: white;
+}
+
+/* 🔷 TABLE */
+.table-container {
+  width: 100%;
+  max-width: 1000px;
+  padding: 25px;
+
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(15px);
+
+  border-radius: 20px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  color: white;
+}
+
+th, td {
+  padding: 15px;
+  text-align: center;
+}
+
+/* 🔷 MOBILE FIX 🔥 */
 @media (max-width: 992px) {
-    .main-content {
-        margin-left: 0;
-    }
+
+  /* TOPBAR SHOW */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    height: 60px;
+    padding: 0 20px;
+
+    background: black;
+    color: white;
+
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 1100;
+  }
+
+  .topbar button {
+    font-size: 22px;
+    background: none;
+    border: none;
+    color: white;
+  }
+
+  /* SIDEBAR HIDDEN */
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+  }
+
+  /* CONTENT FIX */
+  .main-content {
+    margin-left: 0;
+    margin-top: 60px;
+    padding: 20px;
+    align-items: flex-start;
+  }
+}
+
+/* EXTRA SMALL */
+@media (max-width: 768px) {
+
+  .welcome-card {
+    padding: 20px;
+  }
+
+  .form-container {
+    padding: 20px;
+  }
+
+  th, td {
+    font-size: 12px;
+    padding: 10px;
+  }
+}
+
+/* 🔷 ANIMATION */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* Dark glass effect */
+.welcome-card,
+.form-container,
+.table-container {
+  background: rgba(0, 0, 0, 0.5); /* Darker semi-transparent */
+  backdrop-filter: blur(15px);
+  color: #fff; /* Make sure text is white */
+}
+/* 🔷 RESET */
+
+
+/* 🔷 MAIN CONTENT */
+.main-content {
+  margin-left: 250px;
+  min-height: 100vh;
+  padding: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+/* 🔷 DASHBOARD CARD */
+.welcome-card {
+  width: 100%;
+  max-width: 550px;
+  padding: 40px;
+  text-align: center;
+
+  background: rgba(10, 10, 10, 0.6); /* Dark glass */
+  backdrop-filter: blur(20px);
+  border-radius: 25px;
+  box-shadow: 0 10px 40px rgba(0, 198, 255, 0.3);
+
+  animation: fadeIn 0.8s ease;
+  color: #00c6ff;
+  border: 1px solid rgba(0,198,255,0.2);
+}
+
+/* Welcome Titles */
+.welcome-card h1 {
+  font-size: 2.2rem;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.welcome-card h2 {
+  font-size: 1.6rem;
+  margin-bottom: 15px;
+  color: #00c6ff;
+}
+
+.welcome-card p {
+  font-size: 1rem;
+  color: #ccc;
+  margin-bottom: 25px;
+}
+
+/* Quick Action Buttons */
+.quick-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 12px 25px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  transition: 0.3s;
+}
+
+.action-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(0,198,255,0.6);
+}
+
+/* 🔷 RESPONSIVE */
+@media (max-width: 992px) {
+ @media (max-width: 992px) {
+  .main-content {
+    margin-left: 0;
+    margin-top: 0; /* remove margin-top */
+    padding: 20px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center; /* center vertically */
+    min-height: calc(100vh - 60px); /* account for topbar height */
+    flex-direction: column;
+  }
+}
+
+  .welcome-card {
+    padding: 25px;
+  }
+}
+
+@media (max-width: 768px) {
+  .welcome-card {
+    width: 95%;
+    padding: 20px;
+  }
+
+  .welcome-card h1 {
+    font-size: 1.8rem;
+  }
+
+  .welcome-card h2 {
+    font-size: 1.4rem;
+  }
+
+  .action-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* 🔷 ANIMATION */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* SIDEBAR (already dark, responsive) */
+/* You can keep your current sidebar CSS with dark glass effect */
+
+/* 🔷 MAIN CONTENT */
+.main-content {
+  margin-left: 250px;
+  min-height: 100vh;
+  padding: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+/* 🔷 FORM CONTAINER */
+.form-container {
+  width: 100%;
+  max-width: 700px;
+  padding: 30px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0,198,255,0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  animation: fadeIn 0.8s ease;
+}
+
+/* Form headings */
+.form-container h2 {
+  color: #00c6ff;
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+/* INPUT, TEXTAREA, SELECT */
+.form-container input,
+.form-container textarea,
+.form-container select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-size: 1rem;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* BUTTON */
+.form-container button {
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.form-container button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(0,198,255,0.6);
+}
+
+/* 🔷 ALIAS TAGS */
+.alias-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  border-radius: 10px;
+}
+
+.alias-box input {
+  flex: 1;
+  min-width: 120px;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+}
+
+/* Tag style */
+.alias-box .tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: rgba(0,198,255,0.2);
+  color: #fff;
+  border-radius: 15px;
+  font-size: 0.9rem;
+}
+
+.alias-box .tag button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* 🔷 RESPONSIVE: Tablets and below */
+@media (max-width: 992px) {
+  .main-content {
+    margin-left: 0;
+    margin-top: 0;
+    padding: 20px;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    min-height: calc(100vh - 60px); /* topbar height */
+  }
+
+  .form-container {
+    max-width: 90%;
+    padding: 25px;
+  }
+}
+
+/* 🔷 RESPONSIVE: Mobile */
+@media (max-width: 768px) {
+  .form-container {
+    width: 95%;
+    padding: 20px;
+  }
+
+  .form-container input,
+  .form-container textarea,
+  .form-container select {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
+
+  .form-container button {
+    font-size: 0.9rem;
+    width: 100%;
+  }
+
+  .alias-box input {
+    min-width: 80px;
+    font-size: 0.9rem;
+  }
+
+  .alias-box .tag {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+  }
+}
+
+/* 🔷 ANIMATION */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* 🔷 MAIN CONTENT */
+.addgames-main-content {
+  margin-left: 250px; /* space for sidebar */
+  min-height: 100vh;
+  padding: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+/* 🔷 FORM CONTAINER */
+.addgames-form-container {
+  width: 100%;
+  max-width: 700px;
+  padding: 30px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  animation: fadeIn 0.8s ease;
+  box-shadow: 0 10px 30px rgba(0,198,255,0.2);
+}
+
+.addgames-form-container h2 {
+  color: #00c6ff;
+  text-align: center;
+}
+
+/* INPUT, TEXTAREA, SELECT */
+.addgames-form-container input,
+.addgames-form-container textarea,
+.addgames-form-container select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-size: 1rem;
+}
+
+.addgames-form-container textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* BUTTON */
+.addgames-form-container button {
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.addgames-form-container button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(0,198,255,0.6);
+}
+
+/* 🔷 ALIAS TAGS */
+.addgames-alias-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  border-radius: 10px;
+}
+
+.addgames-alias-box input {
+  flex: 1;
+  min-width: 120px;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+}
+
+.addgames-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: rgba(0,198,255,0.2);
+  color: #fff;
+  border-radius: 15px;
+  font-size: 0.9rem;
+}
+
+.addgames-tag button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* 🔷 RESPONSIVE */
+@media (max-width: 992px) {
+  .addgames-main-content {
+    margin-left: 0;
+    margin-top: 60px; /* topbar height */
+    padding: 20px;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+  }
+
+  .addgames-form-container {
+    max-width: 90%;
+    padding: 25px;
+  }
+}
+
+@media (max-width: 768px) {
+  .addgames-form-container {
+    width: 95%;
+    padding: 20px;
+  }
+
+  .addgames-form-container input,
+  .addgames-form-container textarea,
+  .addgames-form-container select {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
+
+  .addgames-form-container button {
+    font-size: 0.9rem;
+    width: 100%;
+  }
+
+  .addgames-alias-box input {
+    min-width: 80px;
+    font-size: 0.9rem;
+  }
+
+  .addgames-tag {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+  }
+}
+
+/* 🔷 ANIMATION */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.addgames-form-container form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* space between inputs, textarea, select, button */
+}
+/* PAGE */
+/* MAIN CONTAINER */
+.games-main {
+  margin-left: 250px;
+  padding: 40px;
+  padding-top: 60px; /* optional, safe top space */
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background: #0f111a;
+}
+.games-container {
+  width: 100%;
+  max-width: 1100px;
+  padding: 30px;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,198,255,0.3);
+  color: #fff;
+}
+
+.games-container h2 {
+  text-align: center;
+  margin-bottom: 25px;
+  color: #00c6ff;
+}
+
+/* TABLE */
+.games-table-wrapper {
+  overflow-x: auto;
+}
+
+.games-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #fff;
+}
+
+.games-table th,
+.games-table td {
+  padding: 15px 10px;
+  text-align: center;
+}
+
+.games-table thead {
+  background: rgba(255,255,255,0.1);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.games-table tbody tr {
+  transition: all 0.3s ease;
+  cursor: default;
+}
+
+.games-table tbody tr:hover {
+  background: rgba(0,198,255,0.1);
+  transform: scale(1.01);
+  border-radius: 10px;
+}
+
+/* GAME INFO CELL */
+.game-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.game-info img {
+  width: 55px;
+  height: 55px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(0,198,255,0.3);
+}
+
+/* TOGGLE SWITCH */
+.trending-switch {
+  width: 50px;
+  height: 25px;
+  border-radius: 25px;
+  background: rgba(255,0,0,0.7);
+  position: relative;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.trending-switch.active {
+  background: #00c853;
+}
+
+.switch-circle {
+  width: 21px;
+  height: 21px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: 0.3s;
+}
+
+.trending-switch.active .switch-circle {
+  left: 27px;
+}
+
+/* BUTTONS */
+.edit-btn,
+.delete-btn {
+  padding: 7px 15px;
+  margin: 2px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.edit-btn {
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  color: #fff;
+}
+
+.edit-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px #00c6ff;
+}
+
+.delete-btn {
+  background: rgba(255,0,0,0.8);
+  color: #fff;
+}
+
+.delete-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px red;
+}
+
+/* MOBILE RESPONSIVE */
+@media (max-width: 992px) {
+  .games-main {
+    margin-left: 0;
+    padding: 20px;
+    padding-top: 80px; /* add enough space for topbar height */
+    align-items: center;
+    justify-content: flex-start;
+  }
+}
+  .games-container {
+    padding: 20px;
+  }
+
+  .games-table th,
+  .games-table td {
+    padding: 10px 5px;
+    font-size: 13px;
+  }
+
+  .game-info img {
+    width: 45px;
+    height: 45px;
+  }
+
+  .trending-switch {
+    width: 45px;
+    height: 22px;
+  }
+
+  .switch-circle {
+    width: 20px;
+    height: 20px;
+  }
+@media (max-width: 576px) {
+  .games-main {
+    padding-top: 70px; /* very small mobile screens */
+  }
+}
+
+@media (max-width: 768px) {
+  .game-info span {
+    font-size: 12px;
+  }
+
+  .edit-btn,
+  .delete-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+/* EDIT CONTAINER EXTRA */
+.edit-container {
+  max-width: 750px;
+  margin: auto;
+  padding: 40px;
+  padding-top: 80px; /* push below topbar on mobile */
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* adds space between child elements like inputs */
+  background: rgba(0,0,0,0.6);
+  border-radius: 20px;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 10px 40px rgba(0,198,255,0.3);
+  color: #fff;
+}
+
+/* IMAGE PREVIEW */
+.preview {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.preview img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 15px;
+  margin-bottom: 10px;
+  box-shadow: 0 0 20px rgba(0,198,255,0.5);
+}
+
+.preview p {
+  font-size: 12px;
+  color: #aaa;
+}
+
+/* INPUTS / TEXTAREA / SELECT */
+.edit-container input,
+.edit-container textarea,
+.edit-container select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-size: 1rem;
+  margin-bottom: 15px; /* adds spacing between inputs */
+}
+
+/* BUTTONS */
+.edit-container button {
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.edit-container button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(0,198,255,0.6);
+}
+
+/* MOBILE RESPONSIVE */
+@media (max-width: 992px) {
+  .edit-container {
+    padding: 20px;
+    padding-top: 80px; /* topbar height */
+    gap: 15px;
+  }
+
+  .preview img {
+    width: 100px;
+    height: 100px;
+  }
+
+  .edit-container input,
+  .edit-container textarea,
+  .edit-container select {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
+
+  .edit-container button {
+    font-size: 0.9rem;
+  }
 }
