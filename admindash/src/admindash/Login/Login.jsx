@@ -7,7 +7,7 @@ export default function Login() {
     const [password,setPass]=useState();
     const nav=useNavigate();
     function log(){
-        axios.post("http://localhost:5000/login", {username , password})
+        axios.post("https://myrepacks.onrender.com/login", {username , password})
         .then((result)=>{
             // console.log(result.data);
            if (result.data === "UserNot") {

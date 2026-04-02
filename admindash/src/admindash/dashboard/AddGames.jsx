@@ -24,7 +24,7 @@ export default function AddGames() {
         }
     }, [])
     function addgame() {
-        axios.post("http://localhost:5000/add", { gname, gimage, gdes, gcat, gfimage, glink, gvideo, othername });
+        axios.post("https://myrepacks.onrender.com/add", { gname, gimage, gdes, gcat, gfimage, glink, gvideo, othername });
     }
     return (
         <div className="container-fluid ">
