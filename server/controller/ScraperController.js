@@ -210,29 +210,86 @@ exports.ImageSuggest = async (req, res) => {
   if (!gameName) return res.status(400).json({ success: false, error: "gameName is required" });
 
   const results = [];
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+  };
 
+  // ── Steam ─────────────────────────────────────────────────────────────────
   try {
     const steamRes = await axios.get(
       `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`,
-      { headers: JSON_HEADERS, timeout: 10000 }
+      { timeout: 8000 }
     );
-
     const items = steamRes.data?.items || [];
-
     for (const item of items.slice(0, 4)) {
       const id = item.id;
-      results.push({
-        title: item.name,
-        cover:   `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_600x900.jpg`,
-        capsule: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`,
-        hero:    `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_hero.jpg`,
-        source: "steam",
-      });
+      let screenshots = [];
+      try {
+        const detailRes = await axios.get(
+          `https://store.steampowered.com/api/appdetails?appids=${id}&filters=screenshots`,
+          { timeout: 8000 }
+        );
+        const appData = detailRes.data?.[id]?.data;
+        screenshots = (appData?.screenshots || []).slice(0, 5).map(s => ({
+          title: `${item.name} — Screenshot`,
+          cover: s.path_full,
+          capsule: s.path_thumbnail,
+          hero: s.path_full,
+          source: "steam_screenshot",
+        }));
+      } catch (_) {}
+      results.push(
+        { title: item.name, cover: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_600x900.jpg`, capsule: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`, hero: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_hero.jpg`, source: "steam" },
+        ...screenshots
+      );
     }
-  } catch (e) {
-    console.error("ImageSuggest error:", e.message);
-    // Return empty results rather than 500 — frontend handles empty gracefully
+  } catch (_) {}
+
+  // ── RAWG ──────────────────────────────────────────────────────────────────
+  try {
+    const rawgRes = await axios.get(
+      `https://api.rawg.io/api/games?search=${encodeURIComponent(gameName)}&page_size=5`,
+      { timeout: 8000, headers }
+    );
+    const games = rawgRes.data?.results || [];
+    for (const game of games) {
+      if (!game.background_image) continue;
+      const ssResults = (game.short_screenshots || []).slice(1, 5).map(ss => ({
+        title: `${game.name} — Screenshot`, cover: ss.image, capsule: ss.image, hero: ss.image, source: "rawg_screenshot",
+      }));
+      results.push(
+        { title: game.name, cover: game.background_image, capsule: game.background_image, hero: game.background_image, source: "rawg" },
+        ...ssResults
+      );
+    }
+  } catch (_) {}
+
+  // ── Bing fallback ─────────────────────────────────────────────────────────
+  if (results.length < 6) {
+    try {
+      const bingUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(gameName + " game cover art high quality")}&qft=+filterui:imagesize-large&form=IRFLTR`;
+      const { data: html } = await axios.get(bingUrl, { timeout: 10000, headers });
+      const $ = cheerio.load(html);
+      $("a.iusc").each((_, el) => {
+        try {
+          const m = $(el).attr("m");
+          if (m) {
+            const parsed = JSON.parse(m);
+            if (parsed.murl) results.push({ title: parsed.t || gameName, cover: parsed.murl, capsule: parsed.turl || parsed.murl, hero: parsed.murl, source: "bing" });
+          }
+        } catch (_) {}
+      });
+    } catch (_) {}
   }
 
-  res.json({ success: true, results });
+  const seen = new Set();
+  const unique = results.filter(r => {
+    if (!r.cover || seen.has(r.cover)) return false;
+    seen.add(r.cover);
+    return true;
+  });
+
+  res.json({ success: true, results: unique });
 };
