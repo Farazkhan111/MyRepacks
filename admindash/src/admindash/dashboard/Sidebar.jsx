@@ -15,6 +15,7 @@ export default function Sidebar() {
     { path: "/dashboard", name: "Home", icon: "🏠" },
     { path: "/add", name: "Add Game", icon: "➕" },
     { path: "/show", name: "Show Game", icon: "🎮" },
+    {path: "/scraper", name: "scraper", icon: "➕"}
   ];
 
   return (

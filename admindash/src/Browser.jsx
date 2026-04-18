@@ -5,6 +5,7 @@ import Dashboard from './admindash/dashboard/Dashboard';
 import AddGames from './admindash/dashboard/AddGames';
 import ShowGames from './admindash/dashboard/ShowGames';
 import Edit from './admindash/dashboard/Edit';
+import GameScraper from './admindash/dashboard/GameScraper';
 export default function Browser() {
   return (
      <BrowserRouter>
@@ -15,6 +16,7 @@ export default function Browser() {
           <Route path='/add'element={<AddGames/>}/>
           <Route path='/show' element={<ShowGames/>}/>
           <Route path='/edit' element={<Edit/>}/>
+          <Route path="/scraper" element={<GameScraper />} />
         </Route>
       </Routes>
     </BrowserRouter>
