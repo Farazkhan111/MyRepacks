@@ -17,6 +17,14 @@ const INFO_MAP = {
   Crack: "🔓 Crack",
 };
 
+const SOURCE_BADGE = {
+  steam: "🎮 Steam",
+  steam_screenshot: "🎮 Steam SS",
+  rawg: "🕹 RAWG",
+  rawg_screenshot: "🕹 RAWG SS",
+  bing: "🔍 Bing",
+};
+
 export default function GameScraper() {
   const nav = useNavigate();
 
@@ -26,13 +34,11 @@ export default function GameScraper() {
   const [game, setGame] = useState(null);
   const [tab, setTab] = useState("info");
 
-  // Image suggestion states
   const [imgQuery, setImgQuery] = useState("");
   const [imgLoading, setImgLoading] = useState(false);
   const [imgResults, setImgResults] = useState([]);
   const [selectedImages, setSelectedImages] = useState({ cover: "", hero: "" });
 
-  // Copy-to-AddGame feedback
   const [copied, setCopied] = useState(false);
 
   // ── Scrape ──────────────────────────────────────────────────────
@@ -66,6 +72,7 @@ export default function GameScraper() {
   async function handleImageSearch() {
     if (!imgQuery.trim()) return;
     setImgLoading(true);
+    setImgResults([]);
     try {
       const res = await fetch(`${API}/imagesuggest`, {
         method: "POST",
@@ -81,7 +88,7 @@ export default function GameScraper() {
     }
   }
 
-  // ── Send to AddGame page via sessionStorage ─────────────────────
+  // ── Send to AddGame ─────────────────────────────────────────────
   function sendToAddGame() {
     if (!game) return;
 
@@ -109,6 +116,19 @@ export default function GameScraper() {
     if (g.includes("simulat")) return "Simulation";
     if (g.includes("role") || g.includes("rpg")) return "Roleplay";
     return "";
+  }
+
+  // ── Image card helpers ──────────────────────────────────────────
+  function SelectBtn({ url, type }) {
+    const isSelected = selectedImages[type] === url;
+    return (
+      <button
+        className={`img-select-btn ${isSelected ? "selected" : ""}`}
+        onClick={() => setSelectedImages(p => ({ ...p, [type]: isSelected ? "" : url }))}
+      >
+        {isSelected ? `✓ Selected as ${type === "cover" ? "Cover" : "Hero"}` : `Set as ${type === "cover" ? "Cover (image)" : "Hero (fimage)"}`}
+      </button>
+    );
   }
 
   return (
@@ -147,12 +167,8 @@ export default function GameScraper() {
           </button>
         </div>
 
-        {/* ── Error ── */}
-        {error && (
-          <div className="scraper-error">⚠️ {error}</div>
-        )}
+        {error && <div className="scraper-error">⚠️ {error}</div>}
 
-        {/* ── Loading skeleton ── */}
         {loading && (
           <div className="scraper-skeleton">
             <div className="sk sk-cover" />
@@ -168,7 +184,6 @@ export default function GameScraper() {
         {game && !loading && (
           <div className="scraper-result">
 
-            {/* Game hero row */}
             <div className="scraper-game-hero">
               {game.cover && (
                 <img src={game.cover} alt={game.title} className="scraper-cover" onError={e => e.target.style.display = "none"} />
@@ -178,6 +193,11 @@ export default function GameScraper() {
                 <a href={game.sourceUrl} target="_blank" rel="noopener noreferrer" className="scraper-source-link">
                   {game.sourceUrl}
                 </a>
+                {game.descriptionSource && (
+                  <span className="chip chip-purple" style={{ marginTop: 4 }}>
+                    📝 Description from {game.descriptionSource === "steam" ? "Steam" : "RAWG"}
+                  </span>
+                )}
                 <div className="scraper-chips">
                   {game.info?.["Repack Size"] && <span className="chip chip-amber">📁 {game.info["Repack Size"]}</span>}
                   {game.info?.["Original Size"] && <span className="chip chip-blue">📦 {game.info["Original Size"]}</span>}
@@ -201,11 +221,7 @@ export default function GameScraper() {
                 { id: "screenshots", label: `🖼 Screenshots (${game.screenshots?.length || 0})` },
                 { id: "images", label: "🔍 Image Search" },
               ].map(t => (
-                <button
-                  key={t.id}
-                  className={`scraper-tab ${tab === t.id ? "active" : ""}`}
-                  onClick={() => setTab(t.id)}
-                >
+                <button key={t.id} className={`scraper-tab ${tab === t.id ? "active" : ""}`} onClick={() => setTab(t.id)}>
                   {t.label}
                 </button>
               ))}
@@ -233,7 +249,14 @@ export default function GameScraper() {
               {tab === "desc" && (
                 <div className="scraper-desc">
                   {game.description
-                    ? <p>{game.description}</p>
+                    ? <>
+                        <p>{game.description}</p>
+                        {game.descriptionSource && (
+                          <p className="scraper-empty" style={{ marginTop: 8 }}>
+                            — Source: {game.descriptionSource === "steam" ? "Steam Store" : "RAWG.io"}
+                          </p>
+                        )}
+                      </>
                     : <p className="scraper-empty">No description found.</p>
                   }
                 </div>
@@ -245,7 +268,7 @@ export default function GameScraper() {
                   {game.magnet && (
                     <div className="magnet-row">
                       <span>🧲 Magnet link available</span>
-                      <button onClick={() => { navigator.clipboard.writeText(game.magnet); }}>📋 Copy</button>
+                      <button onClick={() => navigator.clipboard.writeText(game.magnet)}>📋 Copy</button>
                     </div>
                   )}
                   {game.downloadLinks?.length > 0 ? (
@@ -268,12 +291,8 @@ export default function GameScraper() {
                   {game.screenshots?.length > 0 ? (
                     game.screenshots.map((src, i) => (
                       <a key={i} href={src} target="_blank" rel="noopener noreferrer">
-                        <img
-                          src={src}
-                          alt={`Screenshot ${i + 1}`}
-                          className="ss-img"
-                          onError={e => e.target.parentElement.style.display = "none"}
-                        />
+                        <img src={src} alt={`Screenshot ${i + 1}`} className="ss-img"
+                          onError={e => e.target.parentElement.style.display = "none"} />
                       </a>
                     ))
                   ) : (
@@ -285,7 +304,9 @@ export default function GameScraper() {
               {/* Image Search */}
               {tab === "images" && (
                 <div className="img-search-panel">
-                  <p className="img-search-hint">Search Steam for high-quality cover and hero images to use in your game listing.</p>
+                  <p className="img-search-hint">
+                    Search for high-quality game images from Steam, RAWG, and more. Click any image to set it as Cover or Hero.
+                  </p>
 
                   <div className="img-search-row">
                     <input
@@ -325,67 +346,71 @@ export default function GameScraper() {
                     </div>
                   )}
 
-                  {/* Results */}
+                  {/* Results — flat grid, every image is its own card */}
                   {imgResults.length > 0 ? (
                     <div className="img-results-grid">
                       {imgResults.map((r, i) => (
                         <div key={i} className="img-result-card">
-                          <div className="img-result-name">{r.title}</div>
-
-                          {/* Portrait cover */}
-                          <div className="img-result-section">
-                            <span className="img-result-section-label">Portrait Cover</span>
-                            <img
-                              src={r.cover}
-                              alt="cover"
-                              className="img-thumb img-portrait"
-                              onError={e => e.target.style.display = "none"}
-                            />
-                            <div className="img-btn-row">
-                              <button
-                                className={`img-select-btn ${selectedImages.cover === r.cover ? "selected" : ""}`}
-                                onClick={() => setSelectedImages(p => ({ ...p, cover: r.cover }))}
-                              >
-                                {selectedImages.cover === r.cover ? "✓ Selected as Cover" : "Set as Cover (image)"}
-                              </button>
-                              <button
-                                className={`img-select-btn ${selectedImages.hero === r.cover ? "selected" : ""}`}
-                                onClick={() => setSelectedImages(p => ({ ...p, hero: r.cover }))}
-                              >
-                                {selectedImages.hero === r.cover ? "✓ Selected as Hero" : "Set as Hero (fimage)"}
-                              </button>
-                            </div>
+                          {/* Source badge */}
+                          <div className="img-result-name">
+                            {r.title}
+                            {r.source && (
+                              <span className="img-source-badge">{SOURCE_BADGE[r.source] || r.source}</span>
+                            )}
                           </div>
 
-                          {/* Landscape hero */}
-                          <div className="img-result-section">
-                            <span className="img-result-section-label">Landscape Header</span>
-                            <img
-                              src={r.capsule}
-                              alt="capsule"
-                              className="img-thumb img-landscape"
-                              onError={e => e.target.style.display = "none"}
-                            />
-                            <div className="img-btn-row">
-                              <button
-                                className={`img-select-btn ${selectedImages.cover === r.capsule ? "selected" : ""}`}
-                                onClick={() => setSelectedImages(p => ({ ...p, cover: r.capsule }))}
-                              >
-                                {selectedImages.cover === r.capsule ? "✓ Selected as Cover" : "Set as Cover (image)"}
-                              </button>
-                              <button
-                                className={`img-select-btn ${selectedImages.hero === r.capsule ? "selected" : ""}`}
-                                onClick={() => setSelectedImages(p => ({ ...p, hero: r.capsule }))}
-                              >
-                                {selectedImages.hero === r.capsule ? "✓ Selected as Hero" : "Set as Hero (fimage)"}
-                              </button>
-                            </div>
+                          {/* Main image (cover / background) */}
+                          <img
+                            src={r.cover}
+                            alt={r.title}
+                            className="img-thumb img-portrait"
+                            onError={e => e.target.style.display = "none"}
+                          />
+                          <div className="img-btn-row">
+                            <SelectBtn url={r.cover} type="cover" />
+                            <SelectBtn url={r.cover} type="hero" />
                           </div>
+
+                          {/* Capsule / header (landscape) — only show if different from cover */}
+                          {r.capsule && r.capsule !== r.cover && (
+                            <>
+                              <span className="img-result-section-label" style={{ marginTop: 8, display: "block" }}>Landscape Header</span>
+                              <img
+                                src={r.capsule}
+                                alt={`${r.title} header`}
+                                className="img-thumb img-landscape"
+                                onError={e => e.target.style.display = "none"}
+                              />
+                              <div className="img-btn-row">
+                                <SelectBtn url={r.capsule} type="cover" />
+                                <SelectBtn url={r.capsule} type="hero" />
+                              </div>
+                            </>
+                          )}
+
+                          {/* Hero banner — only show if different from both */}
+                          {r.hero && r.hero !== r.cover && r.hero !== r.capsule && (
+                            <>
+                              <span className="img-result-section-label" style={{ marginTop: 8, display: "block" }}>Hero Banner</span>
+                              <img
+                                src={r.hero}
+                                alt={`${r.title} hero`}
+                                className="img-thumb img-landscape"
+                                onError={e => e.target.style.display = "none"}
+                              />
+                              <div className="img-btn-row">
+                                <SelectBtn url={r.hero} type="cover" />
+                                <SelectBtn url={r.hero} type="hero" />
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    !imgLoading && <p className="scraper-empty">Search for a game to see high-quality image suggestions from Steam.</p>
+                    !imgLoading && (
+                      <p className="scraper-empty">Search for a game to see high-quality images from Steam, RAWG, and more.</p>
+                    )
                   )}
                 </div>
               )}
