@@ -22,5 +22,6 @@ Router.post("/cdel", gameController.Cdel);
 // ── New scraper routes ───────────────────────────────────────────
 Router.post("/scrape", scraperController.ScrapeGame);
 Router.post("/imagesuggest", scraperController.ImageSuggest);
+Router.post("/descsearch", scraperController.DescSearch);
 
 module.exports = Router;

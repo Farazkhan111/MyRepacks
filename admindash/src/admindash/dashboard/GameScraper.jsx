@@ -25,11 +25,6 @@ const SOURCE_BADGE = {
   bing: "🔍 Bing",
 };
 
-// Maps descriptionSource value → human readable label for badge + desc tab
-const DESC_SOURCE_LABEL = {
-  web: { label: "Web Search", badge: "🌐 Web" },
-};
-
 export default function GameScraper() {
   const nav = useNavigate();
 
@@ -39,10 +34,17 @@ export default function GameScraper() {
   const [game, setGame] = useState(null);
   const [tab, setTab] = useState("info");
 
+  // Image search state
   const [imgQuery, setImgQuery] = useState("");
   const [imgLoading, setImgLoading] = useState(false);
   const [imgResults, setImgResults] = useState([]);
   const [selectedImages, setSelectedImages] = useState({ cover: "", hero: "" });
+
+  // Description search state
+  const [descQuery, setDescQuery] = useState("");
+  const [descLoading, setDescLoading] = useState(false);
+  const [descResults, setDescResults] = useState([]);
+  const [selectedDesc, setSelectedDesc] = useState("");
 
   const [copied, setCopied] = useState(false);
 
@@ -54,6 +56,8 @@ export default function GameScraper() {
     setGame(null);
     setImgResults([]);
     setSelectedImages({ cover: "", hero: "" });
+    setDescResults([]);
+    setSelectedDesc("");
 
     try {
       const res = await fetch(`${API}/scrape`, {
@@ -65,11 +69,37 @@ export default function GameScraper() {
       if (!res.ok || !json.success) throw new Error(json.error || "Scrape failed");
       setGame(json.data);
       setImgQuery(json.data.title || "");
+      setDescQuery(json.data.title || "");
+      // Pre-load auto-fetched description as first result
+      if (json.data.description) {
+        setDescResults([{ text: json.data.description, source: "web" }]);
+      }
       setTab("info");
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ── Description search ──────────────────────────────────────────
+  async function handleDescSearch() {
+    if (!descQuery.trim()) return;
+    setDescLoading(true);
+    setDescResults([]);
+    setSelectedDesc("");
+    try {
+      const res = await fetch(`${API}/descsearch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameName: descQuery.trim() }),
+      });
+      const json = await res.json();
+      setDescResults(json.results || []);
+    } catch (e) {
+      setDescResults([]);
+    } finally {
+      setDescLoading(false);
     }
   }
 
@@ -98,7 +128,7 @@ export default function GameScraper() {
     if (!game) return;
     const payload = {
       gname: game.title || "",
-      gdes: game.description || "",
+      gdes: selectedDesc || game.description || "",
       gimage: selectedImages.cover || game.cover || "",
       gfimage: selectedImages.hero || game.cover || "",
       gcat: inferCategory(game.info?.Genres || game.info?.Tags || ""),
@@ -131,8 +161,6 @@ export default function GameScraper() {
       </button>
     );
   }
-
-  const descInfo = game?.descriptionSource ? DESC_SOURCE_LABEL[game.descriptionSource] : null;
 
   return (
     <>
@@ -195,14 +223,16 @@ export default function GameScraper() {
                   {game.sourceUrl}
                 </a>
 
-                {/* Description source badge */}
-                {descInfo && (
-                  <span className="chip chip-purple" style={{ marginTop: 4 }}>
-                    {descInfo.badge}
-                  </span>
-                )}
-
-                <div className="scraper-chips">
+                <div className="scraper-chips" style={{ marginTop: 6 }}>
+                  {selectedDesc
+                    ? <span className="chip chip-green">✅ Description selected</span>
+                    : game.description
+                      ? <span className="chip chip-purple">🌐 Description ready</span>
+                      : <span className="chip chip-amber">⚠️ No description yet</span>
+                  }
+                  {(selectedImages.cover || selectedImages.hero) && (
+                    <span className="chip chip-green">🖼 Image selected</span>
+                  )}
                   {game.info?.["Repack Size"] && <span className="chip chip-amber">📁 {game.info["Repack Size"]}</span>}
                   {game.info?.["Original Size"] && <span className="chip chip-blue">📦 {game.info["Original Size"]}</span>}
                   {game.downloadLinks?.length > 0 && <span className="chip chip-green">⬇ {game.downloadLinks.length} links</span>}
@@ -218,7 +248,7 @@ export default function GameScraper() {
             <div className="scraper-tabs">
               {[
                 { id: "info", label: "📋 Info" },
-                { id: "desc", label: "📝 Description" },
+                { id: "desc", label: `📝 Description${selectedDesc ? " ✓" : ""}` },
                 { id: "downloads", label: `⬇ Downloads (${game.downloadLinks?.length || 0})` },
                 { id: "screenshots", label: `🖼 Screenshots (${game.screenshots?.length || 0})` },
                 { id: "images", label: "🔍 Image Search" },
@@ -247,20 +277,76 @@ export default function GameScraper() {
                 </div>
               )}
 
-              {/* Description */}
+              {/* ── Description Tab ── */}
               {tab === "desc" && (
-                <div className="scraper-desc">
-                  {game.description ? (
-                    <>
-                      <p>{game.description}</p>
-                      {descInfo && (
-                        <p className="scraper-empty" style={{ marginTop: 8 }}>
-                          — Source: {descInfo.label}
+                <div className="img-search-panel">
+                  <p className="img-search-hint">
+                    Search for descriptions from the web. Pick the best one to use in Add Game.
+                  </p>
+
+                  {/* Search bar */}
+                  <div className="img-search-row">
+                    <input
+                      className="img-search-input"
+                      type="text"
+                      placeholder="Game name to search description..."
+                      value={descQuery}
+                      onChange={e => setDescQuery(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleDescSearch()}
+                    />
+                    <button
+                      className={`img-search-btn ${descLoading ? "loading" : ""}`}
+                      onClick={handleDescSearch}
+                      disabled={descLoading || !descQuery.trim()}
+                    >
+                      {descLoading ? <span className="spin" /> : "🔍 Search"}
+                    </button>
+                  </div>
+
+                  {/* Selected description preview */}
+                  {selectedDesc && (
+                    <div className="img-selected-row">
+                      <div className="img-selected-item" style={{ width: "100%" }}>
+                        <span className="img-selected-label">✅ Selected Description</span>
+                        <p style={{ margin: "6px 0 8px", fontSize: 13, lineHeight: 1.65, color: "var(--text-primary, #eee)" }}>
+                          {selectedDesc}
                         </p>
-                      )}
-                    </>
+                        <button className="img-deselect" onClick={() => setSelectedDesc("")}>✕ Remove</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Description results */}
+                  {descResults.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+                      {descResults.map((r, i) => {
+                        const isSelected = selectedDesc === r.text;
+                        return (
+                          <div key={i} className="img-result-card" style={{ padding: "14px 16px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                              <span className="img-source-badge">🌐 Web</span>
+                              <span style={{ fontSize: 11, opacity: 0.5 }}>Option {i + 1}</span>
+                            </div>
+                            <p style={{ margin: "0 0 10px", fontSize: 13, lineHeight: 1.65, color: "var(--text-primary, #eee)" }}>
+                              {r.text}
+                            </p>
+                            <button
+                              className={`img-select-btn ${isSelected ? "selected" : ""}`}
+                              onClick={() => setSelectedDesc(isSelected ? "" : r.text)}
+                              style={{ width: "100%" }}
+                            >
+                              {isSelected ? "✓ Selected as Description" : "📝 Use this Description"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : (
-                    <p className="scraper-empty">No description found.</p>
+                    !descLoading && (
+                      <p className="scraper-empty">
+                        Search to find descriptions for this game, or click Search to use the auto-fetched one.
+                      </p>
+                    )
                   )}
                 </div>
               )}
@@ -355,14 +441,12 @@ export default function GameScraper() {
                             {r.title}
                             {r.source && <span className="img-source-badge">{SOURCE_BADGE[r.source] || r.source}</span>}
                           </div>
-
                           <img src={r.cover} alt={r.title} className="img-thumb img-portrait"
                             onError={e => e.target.style.display = "none"} />
                           <div className="img-btn-row">
                             <SelectBtn url={r.cover} type="cover" />
                             <SelectBtn url={r.cover} type="hero" />
                           </div>
-
                           {r.capsule && r.capsule !== r.cover && (
                             <>
                               <span className="img-result-section-label" style={{ marginTop: 8, display: "block" }}>Landscape Header</span>
@@ -374,7 +458,6 @@ export default function GameScraper() {
                               </div>
                             </>
                           )}
-
                           {r.hero && r.hero !== r.cover && r.hero !== r.capsule && (
                             <>
                               <span className="img-result-section-label" style={{ marginTop: 8, display: "block" }}>Hero Banner</span>
