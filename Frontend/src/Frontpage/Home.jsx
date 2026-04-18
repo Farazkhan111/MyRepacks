@@ -1,24 +1,18 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import Imgpage1 from './Imgpage1'
 import Popularp from './Popularp'
 import Latest from './Latest'
 import Newgame from './Newgame'
-import { useEffect } from 'react'
 
 export default function Home() {
-  useEffect(()=>{
-       window.scrollTo(0, 0);
-  },[])
+  useEffect(() => { window.scrollTo(0, 0) }, [])
+
   return (
-    <>
-    <div className='mainbox'>
-    <Imgpage1/>
-    <Popularp/>
-    <Latest/>
-    <Newgame/>
+    <div className="mainbox">
+      <Imgpage1 />
+      <Popularp />
+      <Latest />
+      <Newgame />
     </div>
-  
-  </>
-    
   )
 }

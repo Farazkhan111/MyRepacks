@@ -1,63 +1,87 @@
 import React, { useEffect, useState } from 'react'
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import url from './url';
+import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
+import url from './url'
 
 export default function Latest() {
-  const [lgame, setData] = useState([]);
-  const nav = useNavigate();
+  const [lgame, setData] = useState([])
+  const nav = useNavigate()
 
   useEffect(() => {
-    axios.post(url + "/showtrend")
-      .then((res) => {
-        setData(res.data.reverse());
-      })
+    axios.post(url + '/showtrend').then((res) => setData(res.data.reverse()))
   }, [])
 
   function showgame(id) {
-    nav("/gamepage", { state: id });
+    nav('/gamepage', { state: id })
   }
 
-  // ✅ Split into groups of 4 (vertical cards)
-  const groups = [];
-  for (let i = 0; i < 12; i += 4) {
-    groups.push(lgame.slice(i, i + 4));
-  }
+  const games = lgame.slice(0, 12)
 
   return (
-    <>
-      <div className='ldiv1 text-center'>
-        <h1 className='lh1 text-light'>
-          <span className='text-info'>Latest</span> Games
-        </h1>
-      </div>
+    <section className="latest-section">
+      {/* Background accent */}
+      <div className="latest-bg-accent" />
 
-      <div className="latest container">
-        <div className="row justify-content-center">
+      <div className="latest-inner">
+        {/* Section header */}
+        <div className="section-header">
+          <div className="section-eyebrow">
+            <span className="eyebrow-icon">⚡</span>
+            <span>Just Added</span>
+          </div>
+          <h2 className="section-title">
+            Latest <span className="title-accent">Releases</span>
+          </h2>
+          <p className="section-subtitle">Fresh repacks added to the library</p>
+        </div>
 
-          {groups.map((group, index) => (
-            <div key={index} className="col-12 col-md-6 col-lg-4 d-flex justify-content-center my-4">
+        {/* List layout */}
+        <div className="latest-list">
+          {games.map((game, index) => (
+            <div
+              key={game._id || index}
+              className="latest-item"
+              onClick={() => showgame(game._id)}
+              style={{ animationDelay: `${index * 0.04}s` }}
+            >
+              {/* Index number */}
+              <span className="latest-item-num">
+                {String(index + 1).padStart(2, '0')}
+              </span>
 
-              <div className="vertical-card">
-
-                {group.map((game) => (
-                  <div
-                    key={game._id}
-                    className="vertical-item"
-                    onClick={() => showgame(game._id)}
-                  >
-                    <img src={game.image} alt="" />
-                    <h6>{game.name}</h6>
-                  </div>
-                ))}
-
+              {/* Thumbnail */}
+              <div className="latest-item-thumb">
+                <img src={game.image} alt={game.name} />
               </div>
 
+              {/* Info */}
+              <div className="latest-item-info">
+                <h4 className="latest-item-name">{game.name}</h4>
+                {game.category && (
+                  <span className="latest-item-cat">{game.category}</span>
+                )}
+              </div>
+
+              {/* Tags */}
+              <div className="latest-item-right">
+                <span className="latest-badge-new">New</span>
+                <svg
+                  className="latest-item-arrow"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </div>
             </div>
           ))}
-
         </div>
       </div>
-    </>
+    </section>
   )
 }
