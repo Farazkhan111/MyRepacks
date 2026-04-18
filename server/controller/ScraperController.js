@@ -202,11 +202,21 @@ exports.ImageSuggest = async (req, res) => {
 
   try {
     const steamRes = await axios.get(
-      `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}`
+      `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          Accept: "application/json",
+        },
+        timeout: 10000
+      }
     );
 
-    for (const item of (steamRes.data?.items || []).slice(0, 4)) {
+    const items = steamRes.data?.items || [];
+
+    for (const item of items.slice(0, 4)) {
       const id = item.id;
+
       results.push({
         title: item.name,
         cover: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_600x900.jpg`,
@@ -215,7 +225,10 @@ exports.ImageSuggest = async (req, res) => {
         source: "steam"
       });
     }
-  } catch {}
+
+  } catch (e) {
+    console.error("ImageSuggest error:", e.message);
+  }
 
   res.json({ success: true, results });
 };
