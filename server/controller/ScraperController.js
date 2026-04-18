@@ -100,9 +100,15 @@ async function fetchGameDescription(title, info = {}) {
       .map(([k, v]) => `${k}: ${v}`)
       .join(", ");
 
-    const prompt = `Write a compelling 3-4 sentence game description for the video game "${title}"${context ? ` (${context})` : ""}.
-Write it like a professional game store description — focus on gameplay, setting, and what makes it exciting and unique.
-Do not mention repack, torrent, crack, or download. Plain text only, no bullet points, no headers.`;
+    const prompt = `You are a game description writer. Write a compelling 3-4 sentence description for the video game "${title}"${context ? ` (${context})` : ""}.
+
+Rules:
+- Write in your own words, do NOT copy from any source
+- Focus on gameplay mechanics, setting, story, and what makes the game fun and unique
+- Use an exciting, engaging tone like a game trailer narrator
+- Do NOT mention any website names, platform names, store names, or services (no Steam, RAWG, Epic, FitGirl, GOG, or anything similar)
+- Do NOT mention words like: repack, torrent, crack, download, free, piracy
+- Output plain text only — no bullet points, no headers, no quotes around the description`;
 
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
