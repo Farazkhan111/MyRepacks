@@ -30,99 +30,38 @@ function extractMagnet(html) {
   return m ? m[0] : null;
 }
 
-// ── Fetch game description ────────────────────────────────────────────────────
-// Priority: Steam → RAWG → AI (always guaranteed a result)
-async function fetchGameDescription(title, info = {}) {
-  const headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept-Language": "en-US,en;q=0.9",
-  };
-
-  // ── 1. Steam ──────────────────────────────────────────────────────────────
-  try {
-    const searchRes = await axios.get(
-      `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(title)}&l=english&cc=US`,
-      { timeout: 8000, headers }
-    );
-    const items = searchRes.data?.items || [];
-    if (items.length > 0) {
-      const appId = items[0].id;
-      const detailRes = await axios.get(
-        `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=short_description,detailed_description`,
-        { timeout: 8000, headers }
-      );
-      const appData = detailRes.data?.[appId]?.data;
-      if (appData) {
-        const desc =
-          appData.short_description ||
-          appData.detailed_description?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-        if (desc && desc.length > 30) {
-          console.log(`[desc] Got description from Steam for "${title}"`);
-          return { description: desc.slice(0, 1500), descriptionSource: "steam" };
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("[desc] Steam failed:", e.message);
-  }
-
-  // ── 2. RAWG ───────────────────────────────────────────────────────────────
-  try {
-    const rawgRes = await axios.get(
-      `https://api.rawg.io/api/games?search=${encodeURIComponent(title)}&page_size=1`,
-      { timeout: 8000, headers }
-    );
-    const game = rawgRes.data?.results?.[0];
-    if (game?.id) {
-      const detailRes = await axios.get(
-        `https://api.rawg.io/api/games/${game.id}`,
-        { timeout: 8000, headers }
-      );
-      const desc =
-        detailRes.data?.description_raw ||
-        detailRes.data?.description?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      if (desc && desc.length > 30) {
-        console.log(`[desc] Got description from RAWG for "${title}"`);
-        return { description: desc.slice(0, 1500), descriptionSource: "rawg" };
-      }
-    }
-  } catch (e) {
-    console.warn("[desc] RAWG failed:", e.message);
-  }
-
-  // ── 3. AI (Anthropic Claude) — always runs if above both fail ────────────
-  console.log(`[desc] Falling back to AI for "${title}"`);
-  console.log(`[desc] ANTHROPIC_API_KEY present: ${!!process.env.ANTHROPIC_API_KEY}`); // debug line
+// ── Fetch game description via web search ────────────────────────────────────
+// Uses Anthropic web_search tool to find the real game description from the web
+async function fetchGameDescription(title) {
+  console.log(`[desc] Searching web for description of "${title}"`);
+  console.log(`[desc] ANTHROPIC_API_KEY present: ${!!process.env.ANTHROPIC_API_KEY}`);
 
   try {
-    const context = Object.entries(info)
-      .filter(([k]) => ["Genres", "Tags", "Companies", "Company"].includes(k))
-      .map(([k, v]) => `${k}: ${v}`)
-      .join(", ");
-
-    const prompt = `You are a game description writer. Write a compelling 3-4 sentence description for the video game "${title}"${context ? ` (${context})` : ""}.
-
-Rules:
-- Write in your own words, do NOT copy from any source
-- Focus on gameplay mechanics, setting, story, and what makes the game fun and unique
-- Use an exciting, engaging tone like a game trailer narrator
-- Do NOT mention any website names, platform names, store names, or services (no Steam, RAWG, Epic, FitGirl, GOG, or anything similar)
-- Do NOT mention words like: repack, torrent, crack, download, free, piracy
-- Output plain text only — no bullet points, no headers, no quotes around the description`;
-
-    const message = await anthropic.messages.create({
+    const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 300,
-      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1024,
+      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      messages: [
+        {
+          role: "user",
+          content: `Search the web for the game "${title}" and return ONLY its description — what the game is about, its gameplay, setting, and story. 3-5 sentences max. Plain text only, no bullet points, no headers, no website names, no platform names, no download or torrent related words. Just the game description itself.`,
+        },
+      ],
     });
 
-    const desc = message.content?.[0]?.text?.trim();
-    if (desc && desc.length > 30) {
-      console.log(`[desc] AI generated description for "${title}"`);
-      return { description: desc, descriptionSource: "ai" };
+    // Extract all text blocks from the response (web_search returns mixed content blocks)
+    const fullText = response.content
+      .map(block => (block.type === "text" ? block.text : ""))
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    if (fullText && fullText.length > 30) {
+      console.log(`[desc] Web search found description for "${title}"`);
+      return { description: fullText.slice(0, 1500), descriptionSource: "web" };
     }
   } catch (e) {
-    console.error("[desc] AI generation failed:", e.message);
+    console.error("[desc] Web search failed:", e.message);
   }
 
   return { description: "", descriptionSource: null };
@@ -195,9 +134,9 @@ exports.ScrapeGame = async (req, res) => {
     });
 
     const data = parseGame(html, url);
-    const { description, descriptionSource } = await fetchGameDescription(data.title, data.info);
+    const { description, descriptionSource } = await fetchGameDescription(data.title);
     data.description = description;
-    data.descriptionSource = descriptionSource; // "steam" | "rawg" | "ai" | null
+    data.descriptionSource = descriptionSource; // "web" | null
 
     res.json({ success: true, data });
   } catch (err) {

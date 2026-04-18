@@ -27,9 +27,7 @@ const SOURCE_BADGE = {
 
 // Maps descriptionSource value → human readable label for badge + desc tab
 const DESC_SOURCE_LABEL = {
-  steam: { label: "Steam Store", badge: "📝 Steam" },
-  rawg: { label: "RAWG.io", badge: "📝 RAWG" },
-  ai: { label: "AI Generated", badge: "🤖 AI Generated" },
+  web: { label: "Web Search", badge: "🌐 Web" },
 };
 
 export default function GameScraper() {
@@ -199,7 +197,7 @@ export default function GameScraper() {
 
                 {/* Description source badge */}
                 {descInfo && (
-                  <span className={`chip ${game.descriptionSource === "ai" ? "chip-purple" : "chip-purple"}`} style={{ marginTop: 4 }}>
+                  <span className="chip chip-purple" style={{ marginTop: 4 }}>
                     {descInfo.badge}
                   </span>
                 )}
