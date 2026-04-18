@@ -3,7 +3,6 @@ const cheerio = require("cheerio");
 const Anthropic = require("@anthropic-ai/sdk");
 
 // ── Anthropic client ──────────────────────────────────────────────────────────
-// Set ANTHROPIC_API_KEY in your environment / .env
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -30,7 +29,7 @@ function extractMagnet(html) {
 }
 
 // ── Fetch game description ────────────────────────────────────────────────────
-// Priority: Steam → RAWG → AI generated
+// Priority: Steam → RAWG → AI (always guaranteed a result)
 async function fetchGameDescription(title, info = {}) {
   const headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -56,11 +55,14 @@ async function fetchGameDescription(title, info = {}) {
           appData.short_description ||
           appData.detailed_description?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
         if (desc && desc.length > 30) {
+          console.log(`[desc] Got description from Steam for "${title}"`);
           return { description: desc.slice(0, 1500), descriptionSource: "steam" };
         }
       }
     }
-  } catch (_) {}
+  } catch (e) {
+    console.warn("[desc] Steam failed:", e.message);
+  }
 
   // ── 2. RAWG ───────────────────────────────────────────────────────────────
   try {
@@ -78,34 +80,44 @@ async function fetchGameDescription(title, info = {}) {
         detailRes.data?.description_raw ||
         detailRes.data?.description?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
       if (desc && desc.length > 30) {
+        console.log(`[desc] Got description from RAWG for "${title}"`);
         return { description: desc.slice(0, 1500), descriptionSource: "rawg" };
       }
     }
-  } catch (_) {}
+  } catch (e) {
+    console.warn("[desc] RAWG failed:", e.message);
+  }
 
-  // ── 3. AI generated (Anthropic Claude) ───────────────────────────────────
+  // ── 3. AI (Anthropic Claude) — always runs if above both fail ────────────
+  console.log(`[desc] Falling back to AI for "${title}"`);
   try {
-    // Build extra context from scraped info if available
-    const context = Object.entries(info)
-      .filter(([k]) => ["Genres", "Tags", "Companies", "Company"].includes(k))
-      .map(([k, v]) => `${k}: ${v}`)
-      .join(", ");
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.warn("[desc] ANTHROPIC_API_KEY not set, skipping AI");
+    } else {
+      const context = Object.entries(info)
+        .filter(([k]) => ["Genres", "Tags", "Companies", "Company"].includes(k))
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(", ");
 
-    const prompt = `Write a compelling 3–4 sentence game description for "${title}"${context ? ` (${context})` : ""}. 
-Write it like a professional store description — focus on gameplay, setting, and what makes it unique. 
-Do not mention repack, torrent, or download. Plain text only, no bullet points.`;
+      const prompt = `Write a compelling 3-4 sentence game description for the video game "${title}"${context ? ` (${context})` : ""}.
+Write it like a professional game store description — focus on gameplay, setting, and what makes it exciting and unique.
+Do not mention repack, torrent, crack, or download. Plain text only, no bullet points, no headers.`;
 
-    const message = await anthropic.messages.create({
-      model: "claude-opus-4-5",
-      max_tokens: 300,
-      messages: [{ role: "user", content: prompt }],
-    });
+      const message = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",  // fast + cheap for description generation
+        max_tokens: 300,
+        messages: [{ role: "user", content: prompt }],
+      });
 
-    const desc = message.content?.[0]?.text?.trim();
-    if (desc && desc.length > 30) {
-      return { description: desc, descriptionSource: "ai" };
+      const desc = message.content?.[0]?.text?.trim();
+      if (desc && desc.length > 30) {
+        console.log(`[desc] AI generated description for "${title}"`);
+        return { description: desc, descriptionSource: "ai" };
+      }
     }
-  } catch (_) {}
+  } catch (e) {
+    console.error("[desc] AI generation failed:", e.message);
+  }
 
   return { description: "", descriptionSource: null };
 }
@@ -177,8 +189,6 @@ exports.ScrapeGame = async (req, res) => {
     });
 
     const data = parseGame(html, url);
-
-    // Pass scraped info (genres etc.) to help AI write a better description
     const { description, descriptionSource } = await fetchGameDescription(data.title, data.info);
     data.description = description;
     data.descriptionSource = descriptionSource; // "steam" | "rawg" | "ai" | null
@@ -210,7 +220,6 @@ exports.ImageSuggest = async (req, res) => {
       { timeout: 8000 }
     );
     const items = steamRes.data?.items || [];
-
     for (const item of items.slice(0, 4)) {
       const id = item.id;
       let screenshots = [];
@@ -228,15 +237,8 @@ exports.ImageSuggest = async (req, res) => {
           source: "steam_screenshot",
         }));
       } catch (_) {}
-
       results.push(
-        {
-          title: item.name,
-          cover: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_600x900.jpg`,
-          capsule: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`,
-          hero: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_hero.jpg`,
-          source: "steam",
-        },
+        { title: item.name, cover: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_600x900.jpg`, capsule: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`, hero: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_hero.jpg`, source: "steam" },
         ...screenshots
       );
     }
@@ -249,15 +251,10 @@ exports.ImageSuggest = async (req, res) => {
       { timeout: 8000, headers }
     );
     const games = rawgRes.data?.results || [];
-
     for (const game of games) {
       if (!game.background_image) continue;
       const ssResults = (game.short_screenshots || []).slice(1, 5).map(ss => ({
-        title: `${game.name} — Screenshot`,
-        cover: ss.image,
-        capsule: ss.image,
-        hero: ss.image,
-        source: "rawg_screenshot",
+        title: `${game.name} — Screenshot`, cover: ss.image, capsule: ss.image, hero: ss.image, source: "rawg_screenshot",
       }));
       results.push(
         { title: game.name, cover: game.background_image, capsule: game.background_image, hero: game.background_image, source: "rawg" },
@@ -277,9 +274,7 @@ exports.ImageSuggest = async (req, res) => {
           const m = $(el).attr("m");
           if (m) {
             const parsed = JSON.parse(m);
-            if (parsed.murl) {
-              results.push({ title: parsed.t || gameName, cover: parsed.murl, capsule: parsed.turl || parsed.murl, hero: parsed.murl, source: "bing" });
-            }
+            if (parsed.murl) results.push({ title: parsed.t || gameName, cover: parsed.murl, capsule: parsed.turl || parsed.murl, hero: parsed.murl, source: "bing" });
           }
         } catch (_) {}
       });
