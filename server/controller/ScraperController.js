@@ -9,11 +9,11 @@ function clean(str) {
 
 function extractDownloadLinks($, contentEl) {
   const links = [];
-  const hosts = ["1fichier", "gofile", "buzzheavier", "datanodes", "filesfm", "pixeldrain", "torrent", "magnet:"];
+  // Only torrent and magnet links
   contentEl.find("a[href]").each((_, el) => {
     const href = $(el).attr("href") || "";
     const text = clean($(el).text());
-    if (hosts.some(h => href.includes(h))) {
+    if (href.includes("magnet:") || href.includes("torrent") || href.endsWith(".torrent")) {
       links.push({ label: text || href, url: href });
     }
   });
@@ -117,45 +117,147 @@ exports.ScrapeGame = async (req, res) => {
   }
 };
 
-// Image suggestions using RAWG (free game database) + fallback to IGDB-style search
+// ── Image Suggest — no API key needed ────────────────────────────────────────
+// Pulls high-quality game images from multiple free sources:
+//   1. Steam store  (cover, hero, header, screenshots)
+//   2. RAWG.io      (free game DB, no key for basic search)
+//   3. Bing image search scrape (fallback)
+
 exports.ImageSuggest = async (req, res) => {
   const { gameName } = req.body;
   if (!gameName) return res.status(400).json({ success: false, error: "gameName is required" });
 
   const results = [];
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+  };
 
+  // ── Source 1: Steam ───────────────────────────────────────────────────────
   try {
-    // Strategy 1: RAWG API (free, no key needed for basic search)
-    const rawgUrl = `https://api.rawg.io/api/games?search=${encodeURIComponent(gameName)}&page_size=6&key=`;
-    // Note: RAWG requires a free API key. We use SteamGridDB approach instead.
-
-    // Strategy 2: Use Steam search + store images (Steam has great HQ images)
-    const steamSearchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`;
-
-    const steamRes = await axios.get(steamSearchUrl, { timeout: 8000 });
+    const steamRes = await axios.get(
+      `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`,
+      { timeout: 8000 }
+    );
     const items = steamRes.data?.items || [];
 
-    for (const item of items.slice(0, 5)) {
-      const appId = item.id;
-      results.push({
-        title: item.name,
-        thumbnail: `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
-        cover: `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
-        hero: `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_hero.jpg`,
-        capsule: `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
-        landscape: `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/ss_${appId}.jpg`,
-        appId,
-        source: "steam",
-      });
-    }
+    for (const item of items.slice(0, 3)) {
+      const id = item.id;
+      // Fetch full app details for screenshots
+      try {
+        const detailRes = await axios.get(
+          `https://store.steampowered.com/api/appdetails?appids=${id}&filters=screenshots,header_image`,
+          { timeout: 8000 }
+        );
+        const appData = detailRes.data?.[id]?.data;
+        const screenshots = (appData?.screenshots || []).map(s => ({
+          title: `${item.name} - Screenshot`,
+          imageUrl: s.path_full,
+          thumbnailUrl: s.path_thumbnail,
+          source: "steam_screenshot",
+        }));
 
-    res.json({ success: true, results });
-  } catch (err) {
-    // Fallback: return placeholder suggestions with the game name embedded in search URLs
-    res.json({
-      success: true,
-      results: [],
-      tip: "Steam search failed. Try pasting direct image URLs.",
-    });
+        results.push(
+          {
+            title: item.name,
+            imageUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_600x900.jpg`,
+            thumbnailUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_600x900_2x.jpg`,
+            source: "steam_cover",
+          },
+          {
+            title: item.name,
+            imageUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_hero.jpg`,
+            thumbnailUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_hero_2x.jpg`,
+            source: "steam_hero",
+          },
+          {
+            title: item.name,
+            imageUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`,
+            thumbnailUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`,
+            source: "steam_header",
+          },
+          ...screenshots.slice(0, 5)
+        );
+      } catch (_) {
+        // detail fetch failed, push basic images only
+        results.push({
+          title: item.name,
+          imageUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`,
+          thumbnailUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`,
+          source: "steam_header",
+        });
+      }
+    }
+  } catch (_) { /* Steam unavailable, continue */ }
+
+  // ── Source 2: RAWG.io (free, no key) ─────────────────────────────────────
+  try {
+    const rawgRes = await axios.get(
+      `https://api.rawg.io/api/games?search=${encodeURIComponent(gameName)}&page_size=5`,
+      { timeout: 8000, headers }
+    );
+    const games = rawgRes.data?.results || [];
+
+    for (const game of games) {
+      if (game.background_image) {
+        results.push({
+          title: game.name,
+          imageUrl: game.background_image,
+          thumbnailUrl: game.background_image,
+          source: "rawg_background",
+        });
+      }
+      // RAWG short_screenshots
+      for (const ss of (game.short_screenshots || []).slice(0, 4)) {
+        results.push({
+          title: `${game.name} - Screenshot`,
+          imageUrl: ss.image,
+          thumbnailUrl: ss.image,
+          source: "rawg_screenshot",
+        });
+      }
+    }
+  } catch (_) { /* RAWG unavailable, continue */ }
+
+  // ── Source 3: Bing Image Search scrape (fallback) ─────────────────────────
+  if (results.length < 5) {
+    try {
+      const bingUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(gameName + " game cover art high quality")}&qft=+filterui:imagesize-large&form=IRFLTR`;
+      const { data: html } = await axios.get(bingUrl, { timeout: 10000, headers });
+      const $ = cheerio.load(html);
+
+      $("a.iusc").each((_, el) => {
+        try {
+          const m = $(el).attr("m");
+          if (m) {
+            const parsed = JSON.parse(m);
+            if (parsed.murl) {
+              results.push({
+                title: parsed.t || gameName,
+                imageUrl: parsed.murl,
+                thumbnailUrl: parsed.turl || parsed.murl,
+                source: "bing_image",
+              });
+            }
+          }
+        } catch (_) {}
+      });
+    } catch (_) { /* Bing scrape failed */ }
   }
+
+  // Deduplicate by imageUrl
+  const seen = new Set();
+  const unique = results.filter(r => {
+    if (!r.imageUrl || seen.has(r.imageUrl)) return false;
+    seen.add(r.imageUrl);
+    return true;
+  });
+
+  res.json({
+    success: true,
+    gameName,
+    totalFound: unique.length,
+    images: unique,
+  });
 };
