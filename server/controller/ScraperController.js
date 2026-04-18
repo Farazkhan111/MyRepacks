@@ -1,5 +1,10 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
+const Anthropic = require("@anthropic-ai/sdk");
+
+// ── Anthropic client ──────────────────────────────────────────────────────────
+// Set ANTHROPIC_API_KEY in your environment / .env
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -9,7 +14,6 @@ function clean(str) {
 
 function extractDownloadLinks($, contentEl) {
   const links = [];
-  // Only torrent and magnet links
   contentEl.find("a[href]").each((_, el) => {
     const href = $(el).attr("href") || "";
     const text = clean($(el).text());
@@ -25,14 +29,15 @@ function extractMagnet(html) {
   return m ? m[0] : null;
 }
 
-// ── Fetch real game description from Steam or RAWG ───────────────────────────
-async function fetchGameDescription(title) {
+// ── Fetch game description ────────────────────────────────────────────────────
+// Priority: Steam → RAWG → AI generated
+async function fetchGameDescription(title, info = {}) {
   const headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept-Language": "en-US,en;q=0.9",
   };
 
-  // ── Try Steam first ───────────────────────────────────────────────────────
+  // ── 1. Steam ──────────────────────────────────────────────────────────────
   try {
     const searchRes = await axios.get(
       `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(title)}&l=english&cc=US`,
@@ -55,9 +60,9 @@ async function fetchGameDescription(title) {
         }
       }
     }
-  } catch (_) { /* Steam failed, try RAWG */ }
+  } catch (_) {}
 
-  // ── Fallback: RAWG.io ─────────────────────────────────────────────────────
+  // ── 2. RAWG ───────────────────────────────────────────────────────────────
   try {
     const rawgRes = await axios.get(
       `https://api.rawg.io/api/games?search=${encodeURIComponent(title)}&page_size=1`,
@@ -69,13 +74,38 @@ async function fetchGameDescription(title) {
         `https://api.rawg.io/api/games/${game.id}`,
         { timeout: 8000, headers }
       );
-      const desc = detailRes.data?.description_raw ||
+      const desc =
+        detailRes.data?.description_raw ||
         detailRes.data?.description?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
       if (desc && desc.length > 30) {
         return { description: desc.slice(0, 1500), descriptionSource: "rawg" };
       }
     }
-  } catch (_) { /* RAWG failed */ }
+  } catch (_) {}
+
+  // ── 3. AI generated (Anthropic Claude) ───────────────────────────────────
+  try {
+    // Build extra context from scraped info if available
+    const context = Object.entries(info)
+      .filter(([k]) => ["Genres", "Tags", "Companies", "Company"].includes(k))
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(", ");
+
+    const prompt = `Write a compelling 3–4 sentence game description for "${title}"${context ? ` (${context})` : ""}. 
+Write it like a professional store description — focus on gameplay, setting, and what makes it unique. 
+Do not mention repack, torrent, or download. Plain text only, no bullet points.`;
+
+    const message = await anthropic.messages.create({
+      model: "claude-opus-4-5",
+      max_tokens: 300,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const desc = message.content?.[0]?.text?.trim();
+    if (desc && desc.length > 30) {
+      return { description: desc, descriptionSource: "ai" };
+    }
+  } catch (_) {}
 
   return { description: "", descriptionSource: null };
 }
@@ -147,9 +177,11 @@ exports.ScrapeGame = async (req, res) => {
     });
 
     const data = parseGame(html, url);
-    const { description, descriptionSource } = await fetchGameDescription(data.title);
+
+    // Pass scraped info (genres etc.) to help AI write a better description
+    const { description, descriptionSource } = await fetchGameDescription(data.title, data.info);
     data.description = description;
-    data.descriptionSource = descriptionSource;
+    data.descriptionSource = descriptionSource; // "steam" | "rawg" | "ai" | null
 
     res.json({ success: true, data });
   } catch (err) {
@@ -159,13 +191,6 @@ exports.ScrapeGame = async (req, res) => {
 };
 
 // ── Image Suggest ─────────────────────────────────────────────────────────────
-// Returns results shaped as: { title, cover, capsule, hero, source }
-// so the existing frontend (GameScraper.jsx) works without any changes.
-//
-// Sources (no API key needed):
-//   1. Steam  → cover (600x900), capsule/header (460x215), hero (1920x620), screenshots
-//   2. RAWG   → background art + short screenshots
-//   3. Bing   → fallback scrape when results are sparse
 
 exports.ImageSuggest = async (req, res) => {
   const { gameName } = req.body;
@@ -178,7 +203,7 @@ exports.ImageSuggest = async (req, res) => {
     "Accept-Language": "en-US,en;q=0.9",
   };
 
-  // ── Source 1: Steam ───────────────────────────────────────────────────────
+  // ── Steam ─────────────────────────────────────────────────────────────────
   try {
     const steamRes = await axios.get(
       `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`,
@@ -188,8 +213,6 @@ exports.ImageSuggest = async (req, res) => {
 
     for (const item of items.slice(0, 4)) {
       const id = item.id;
-
-      // Try fetching screenshots from appdetails
       let screenshots = [];
       try {
         const detailRes = await axios.get(
@@ -199,14 +222,13 @@ exports.ImageSuggest = async (req, res) => {
         const appData = detailRes.data?.[id]?.data;
         screenshots = (appData?.screenshots || []).slice(0, 5).map(s => ({
           title: `${item.name} — Screenshot`,
-          cover: s.path_full,       // use full image as cover option
+          cover: s.path_full,
           capsule: s.path_thumbnail,
           hero: s.path_full,
           source: "steam_screenshot",
         }));
       } catch (_) {}
 
-      // Push cover / header / hero for this app
       results.push(
         {
           title: item.name,
@@ -218,9 +240,9 @@ exports.ImageSuggest = async (req, res) => {
         ...screenshots
       );
     }
-  } catch (_) { /* Steam unavailable */ }
+  } catch (_) {}
 
-  // ── Source 2: RAWG.io (free, no key) ─────────────────────────────────────
+  // ── RAWG ──────────────────────────────────────────────────────────────────
   try {
     const rawgRes = await axios.get(
       `https://api.rawg.io/api/games?search=${encodeURIComponent(gameName)}&page_size=5`,
@@ -230,8 +252,6 @@ exports.ImageSuggest = async (req, res) => {
 
     for (const game of games) {
       if (!game.background_image) continue;
-
-      // Each short_screenshot becomes its own result card
       const ssResults = (game.short_screenshots || []).slice(1, 5).map(ss => ({
         title: `${game.name} — Screenshot`,
         cover: ss.image,
@@ -239,48 +259,33 @@ exports.ImageSuggest = async (req, res) => {
         hero: ss.image,
         source: "rawg_screenshot",
       }));
-
       results.push(
-        {
-          title: game.name,
-          cover: game.background_image,
-          capsule: game.background_image,
-          hero: game.background_image,
-          source: "rawg",
-        },
+        { title: game.name, cover: game.background_image, capsule: game.background_image, hero: game.background_image, source: "rawg" },
         ...ssResults
       );
     }
-  } catch (_) { /* RAWG unavailable */ }
+  } catch (_) {}
 
-  // ── Source 3: Bing scrape (fallback) ──────────────────────────────────────
+  // ── Bing fallback ─────────────────────────────────────────────────────────
   if (results.length < 6) {
     try {
       const bingUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(gameName + " game cover art high quality")}&qft=+filterui:imagesize-large&form=IRFLTR`;
       const { data: html } = await axios.get(bingUrl, { timeout: 10000, headers });
       const $ = cheerio.load(html);
-
       $("a.iusc").each((_, el) => {
         try {
           const m = $(el).attr("m");
           if (m) {
             const parsed = JSON.parse(m);
             if (parsed.murl) {
-              results.push({
-                title: parsed.t || gameName,
-                cover: parsed.murl,
-                capsule: parsed.turl || parsed.murl,
-                hero: parsed.murl,
-                source: "bing",
-              });
+              results.push({ title: parsed.t || gameName, cover: parsed.murl, capsule: parsed.turl || parsed.murl, hero: parsed.murl, source: "bing" });
             }
           }
         } catch (_) {}
       });
-    } catch (_) { /* Bing scrape failed */ }
+    } catch (_) {}
   }
 
-  // Deduplicate by cover URL
   const seen = new Set();
   const unique = results.filter(r => {
     if (!r.cover || seen.has(r.cover)) return false;
