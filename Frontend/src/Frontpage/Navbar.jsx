@@ -89,7 +89,7 @@ export default function Navbar() {
           {/* CENTER — brand */}
           <div className="navbar-brand-wrap">
             <Link to="/" className="navbar-brand">
-              <span className="brand-accent">My</span>RePacks
+              <span className="brand-accent">My</span> <span className='text-light'>RePacks</span>
             </Link>
           </div>
 
