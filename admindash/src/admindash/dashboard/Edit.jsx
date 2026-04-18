@@ -101,7 +101,7 @@ export default function Edit() {
 
             <textarea value={gdes} onChange={(e)=>setDes(e.target.value)} placeholder="Description" />
 
-            <select value={gcat} onChange={(e)=>setCat(e.target.value)}>
+            <select  className="bg-dark" value={gcat} onChange={(e)=>setCat(e.target.value)}>
               <option value="">Select Category</option>
               <option value="Roleplay">Roleplay</option>
               <option value="Simulation">Simulation</option>

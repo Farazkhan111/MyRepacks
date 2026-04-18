@@ -39,7 +39,7 @@ export default function Popularp() {
             {/* Image */}
             <div className="game-card-img-wrap">
               <img
-                src={game.fimage}
+                src={game.image}
                 alt={game.name}
                 className="game-card-img"
               />

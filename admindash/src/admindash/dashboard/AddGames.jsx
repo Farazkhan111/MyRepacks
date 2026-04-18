@@ -47,9 +47,9 @@ export default function AddGames() {
   function addgame(e) {
     e.preventDefault();
     axios
-      .post(`${API}/add`, { gname, gimage, gdes, gcat, gfimage, glink, gtrend, gvideo, othername })
-      .then(() => alert("Game added successfully"))
-      .catch(() => alert("Error adding game"));
+      .post(`${API}/add`, { gname, gimage, gdes, gcat, gfimage, glink, gtrend, gvideo, othername });
+        nav("/show");
+      
   }
 
   const handleAddName = (e) => {
@@ -158,14 +158,14 @@ export default function AddGames() {
               onChange={e => setDes(e.target.value)}
             />
 
-            <select value={gcat} onChange={e => setCat(e.target.value)}>
+            <select className="bg-dark" value={gcat} onChange={e => setCat(e.target.value)}>
               <option value="">Select Category</option>
               <option>Roleplay</option>
               <option>Simulation</option>
               <option>Sports</option>
             </select>
 
-            <select value={gtrend} onChange={e => setTrend(e.target.value)}>
+            <select className="bg-dark" value={gtrend} onChange={e => setTrend(e.target.value)}>
               <option value="">Select Trending</option>
               <option>Trending</option>
               <option>Not Trending</option>

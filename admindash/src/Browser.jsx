@@ -13,7 +13,7 @@ export default function Browser() {
         <Route>
           <Route index element={<Login />}/>
           <Route path='/dashboard' element={<Dashboard/>} />
-          <Route path='/add'element={<AddGames/>}/>
+          <Route path='/add' element={<AddGames/>}/>
           <Route path='/show' element={<ShowGames/>}/>
           <Route path='/edit' element={<Edit/>}/>
           <Route path="/scraper" element={<GameScraper />} />
