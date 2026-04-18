@@ -324,7 +324,9 @@ export default function GameScraper() {
                         return (
                           <div key={i} className="img-result-card" style={{ padding: "14px 16px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                              <span className="img-source-badge">🌐 Web</span>
+                              <span className="img-source-badge">
+                                {r.source === "steam" ? "🎮 Steam" : "🤖 AI"}
+                              </span>
                               <span style={{ fontSize: 11, opacity: 0.5 }}>Option {i + 1}</span>
                             </div>
                             <p style={{ margin: "0 0 10px", fontSize: 13, lineHeight: 1.65, color: "var(--text-primary, #eee)" }}>
