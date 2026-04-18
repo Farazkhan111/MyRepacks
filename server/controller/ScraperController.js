@@ -39,7 +39,7 @@ function extractDownloadLinks($, contentEl) {
   contentEl.find("a[href]").each((_, el) => {
     const href = $(el).attr("href") || "";
     const text = clean($(el).text());
-    const hosts = ["1fichier", "gofile", "buzzheavier", "datanodes", "filesfm", "pixeldrain", "magnet:", "torrent"];
+    const hosts = [ "torrent"];
     if (hosts.some(h => href.includes(h))) {
       links.push({ label: text || href, url: href });
     }
