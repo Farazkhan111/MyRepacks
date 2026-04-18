@@ -1,3 +1,5 @@
+require("dotenv").config(); // ← MUST be first, before any process.env usage
+
 const axios = require("axios");
 const cheerio = require("cheerio");
 const Anthropic = require("@anthropic-ai/sdk");
@@ -90,30 +92,28 @@ async function fetchGameDescription(title, info = {}) {
 
   // ── 3. AI (Anthropic Claude) — always runs if above both fail ────────────
   console.log(`[desc] Falling back to AI for "${title}"`);
-  try {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.warn("[desc] ANTHROPIC_API_KEY not set, skipping AI");
-    } else {
-      const context = Object.entries(info)
-        .filter(([k]) => ["Genres", "Tags", "Companies", "Company"].includes(k))
-        .map(([k, v]) => `${k}: ${v}`)
-        .join(", ");
+  console.log(`[desc] ANTHROPIC_API_KEY present: ${!!process.env.ANTHROPIC_API_KEY}`); // debug line
 
-      const prompt = `Write a compelling 3-4 sentence game description for the video game "${title}"${context ? ` (${context})` : ""}.
+  try {
+    const context = Object.entries(info)
+      .filter(([k]) => ["Genres", "Tags", "Companies", "Company"].includes(k))
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(", ");
+
+    const prompt = `Write a compelling 3-4 sentence game description for the video game "${title}"${context ? ` (${context})` : ""}.
 Write it like a professional game store description — focus on gameplay, setting, and what makes it exciting and unique.
 Do not mention repack, torrent, crack, or download. Plain text only, no bullet points, no headers.`;
 
-      const message = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",  // fast + cheap for description generation
-        max_tokens: 300,
-        messages: [{ role: "user", content: prompt }],
-      });
+    const message = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 300,
+      messages: [{ role: "user", content: prompt }],
+    });
 
-      const desc = message.content?.[0]?.text?.trim();
-      if (desc && desc.length > 30) {
-        console.log(`[desc] AI generated description for "${title}"`);
-        return { description: desc, descriptionSource: "ai" };
-      }
+    const desc = message.content?.[0]?.text?.trim();
+    if (desc && desc.length > 30) {
+      console.log(`[desc] AI generated description for "${title}"`);
+      return { description: desc, descriptionSource: "ai" };
     }
   } catch (e) {
     console.error("[desc] AI generation failed:", e.message);

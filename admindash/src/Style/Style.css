@@ -826,7 +826,7 @@ textarea {
 
 .games-table tbody tr:hover {
   background: rgba(0,198,255,0.1);
-  transform: scale(1.01);
+  transform: scale(1);
   border-radius: 10px;
 }
 
