@@ -1,62 +1,116 @@
 import axios from 'axios'
-import  { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import url from './url';
+import url from './url'
+
+
+const CATEGORIES = ['AllGames', 'Roleplay', 'Simulation', 'Sports']
+
 export default function Collection() {
-    const [allgames, setGames] = useState([]);
-    const [selecvalue, setSval] = useState("AllGames");
-    const nav=useNavigate();
-    useEffect(() => {
-        axios.get(url+"/collection")
-            .then((res) => {
-                console.log(res.data);
-                setGames(res.data);
-            })
-    }, [])
-    function showgame(id){
-        // alert(id);
-        nav("/gamepage",{state:id});
-    }
-    return (
+  const [allgames, setGames] = useState([])
+  const [selecvalue, setSval] = useState('AllGames')
+  const [loading, setLoading] = useState(true)
+  const nav = useNavigate()
 
-        <div className="dashboard-wrapper">
-            <div className="container-fluid">
-                <div className="row ">
-                    <div className="col-12 mb-4">
-                        <select className='game-select' value={selecvalue} onChange={(e) => setSval(e.target.value)} id="sel">
-                            <option value="AllGames" defaultChecked>All Games</option>
-                            <option value="Roleplay">Roleplay</option>
-                            <option value="Simulation">Simulation</option>
-                            <option value="Sports">Sports</option>
-                        </select>
-                    </div>
+  useEffect(() => {
+    axios.get(url + '/collection').then((res) => {
+      setGames(res.data)
+      setLoading(false)
+    })
+  }, [])
 
-                    {allgames.map((game, index) => (
-                        (selecvalue === "AllGames" || selecvalue === game.category) ? (
-                        
-                            <div className="col-lg-4 col-md-6 col-sm-6 mb-5" onClick={()=>showgame(game._id)}  style={{ cursor: 'pointer' }} key={index}>
-                                <div className="neon-card-container">
-                                    {/* 1. THE NEON GLOW (Blurred image behind the card) */}
-                                    <div className="neon-reflection" style={{ backgroundImage: `url(${game.fimage})` }}></div>
+  function showgame(id) {
+    nav('/gamepage', { state: id })
+  }
 
-                                    <div className="game-card" >
-                                        {/* 2. THE INNER GLASS CONTENT */}
-                                        <div className="card-image-container">
-                                            <img className='cardimg' src={game.fimage} alt={game.name} />
-                                        </div>
-                                        <div className="card-content">
-                                            <h4 className="game-title">{game.name}</h4>
-                                            <div className="neon-line"></div> {/* Decorative neon line */}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                        ) : null
-                    ))}
+  const filtered = allgames.filter(
+    (g) => selecvalue === 'AllGames' || selecvalue === g.category
+  )
 
-                </div>
-            </div>
+  return (
+    <div className="collection-page">
+      {/* Page header */}
+      <div className="collection-header">
+        <div className="collection-header-bg" />
+        <div className="collection-header-content">
+          <div className="section-eyebrow">
+            <span className="eyebrow-icon">🎮</span>
+            <span>Full Library</span>
+          </div>
+          <h1 className="collection-title">
+            Game <span className="title-accent">Library</span>
+          </h1>
+          <p className="collection-subtitle">
+            {loading ? 'Loading...' : `${filtered.length} games available — all free`}
+          </p>
         </div>
-    )
+      </div>
+
+      {/* Filter bar */}
+      <div className="collection-filter-bar">
+        <div className="collection-filter-inner">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              className={`filter-btn ${selecvalue === cat ? 'active' : ''}`}
+              onClick={() => setSval(cat)}
+            >
+              {cat === 'AllGames' ? 'All Games' : cat}
+              {selecvalue === cat && (
+                <span className="filter-btn-dot" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Games grid */}
+      <div className="collection-body">
+        {loading ? (
+          <div className="collection-loading">
+            <div className="loading-spinner" />
+            <span>Loading Games...</span>
+          </div>
+        ) : (
+          <div className="collection-grid">
+            {filtered.map((game, index) => (
+              <div
+                key={game._id || index}
+                className="col-card"
+                onClick={() => showgame(game._id)}
+                style={{ animationDelay: `${(index % 12) * 0.04}s` }}
+              >
+                <div className="col-card-img-wrap">
+                  <img
+                    src={game.fimage}
+                    alt={game.name}
+                    className="col-card-img"
+                  />
+                  <div className="col-card-overlay" />
+                  {game.category && (
+                    <span className="col-card-cat">{game.category}</span>
+                  )}
+                  {/* Hover play icon */}
+                  <div className="col-card-play">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="col-card-info">
+                  <h4 className="col-card-name">{game.name}</h4>
+                  <div className="col-card-footer">
+                    <span className="col-card-free">Free Download</span>
+                    <svg className="col-card-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
