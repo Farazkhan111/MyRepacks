@@ -25,6 +25,13 @@ const SOURCE_BADGE = {
   bing: "🔍 Bing",
 };
 
+// Maps descriptionSource value → human readable label for badge + desc tab
+const DESC_SOURCE_LABEL = {
+  steam: { label: "Steam Store", badge: "📝 Steam" },
+  rawg: { label: "RAWG.io", badge: "📝 RAWG" },
+  ai: { label: "AI Generated", badge: "🤖 AI Generated" },
+};
+
 export default function GameScraper() {
   const nav = useNavigate();
 
@@ -91,7 +98,6 @@ export default function GameScraper() {
   // ── Send to AddGame ─────────────────────────────────────────────
   function sendToAddGame() {
     if (!game) return;
-
     const payload = {
       gname: game.title || "",
       gdes: game.description || "",
@@ -101,13 +107,9 @@ export default function GameScraper() {
       glink: game.downloadLinks?.[0]?.url || "",
       othername: [],
     };
-
     sessionStorage.setItem("scraped_game", JSON.stringify(payload));
     setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-      nav("/add");
-    }, 800);
+    setTimeout(() => { setCopied(false); nav("/add"); }, 800);
   }
 
   function inferCategory(genres) {
@@ -118,7 +120,6 @@ export default function GameScraper() {
     return "";
   }
 
-  // ── Image card helpers ──────────────────────────────────────────
   function SelectBtn({ url, type }) {
     const isSelected = selectedImages[type] === url;
     return (
@@ -126,23 +127,25 @@ export default function GameScraper() {
         className={`img-select-btn ${isSelected ? "selected" : ""}`}
         onClick={() => setSelectedImages(p => ({ ...p, [type]: isSelected ? "" : url }))}
       >
-        {isSelected ? `✓ Selected as ${type === "cover" ? "Cover" : "Hero"}` : `Set as ${type === "cover" ? "Cover (image)" : "Hero (fimage)"}`}
+        {isSelected
+          ? `✓ Selected as ${type === "cover" ? "Cover" : "Hero"}`
+          : `Set as ${type === "cover" ? "Cover (image)" : "Hero (fimage)"}`}
       </button>
     );
   }
+
+  const descInfo = game?.descriptionSource ? DESC_SOURCE_LABEL[game.descriptionSource] : null;
 
   return (
     <>
       <Sidebar />
       <div className="scraper-page">
 
-        {/* ── Header ── */}
         <div className="scraper-header">
           <h2 className="scraper-title">🔗 Game Link Scraper</h2>
           <p className="scraper-sub">Paste a FitGirl Repacks URL to auto-fill game data</p>
         </div>
 
-        {/* ── URL Input ── */}
         <div className="scraper-url-row">
           <div className="scraper-input-wrap">
             <span className="scraper-input-icon">🌐</span>
@@ -180,33 +183,34 @@ export default function GameScraper() {
           </div>
         )}
 
-        {/* ── Result ── */}
         {game && !loading && (
           <div className="scraper-result">
 
             <div className="scraper-game-hero">
               {game.cover && (
-                <img src={game.cover} alt={game.title} className="scraper-cover" onError={e => e.target.style.display = "none"} />
+                <img src={game.cover} alt={game.title} className="scraper-cover"
+                  onError={e => e.target.style.display = "none"} />
               )}
               <div className="scraper-game-info">
                 <h3 className="scraper-game-name">{game.title}</h3>
                 <a href={game.sourceUrl} target="_blank" rel="noopener noreferrer" className="scraper-source-link">
                   {game.sourceUrl}
                 </a>
-                {game.descriptionSource && (
-                  <span className="chip chip-purple" style={{ marginTop: 4 }}>
-                    📝 Description from {game.descriptionSource === "steam" ? "Steam" : "RAWG"}
+
+                {/* Description source badge */}
+                {descInfo && (
+                  <span className={`chip ${game.descriptionSource === "ai" ? "chip-purple" : "chip-purple"}`} style={{ marginTop: 4 }}>
+                    {descInfo.badge}
                   </span>
                 )}
+
                 <div className="scraper-chips">
                   {game.info?.["Repack Size"] && <span className="chip chip-amber">📁 {game.info["Repack Size"]}</span>}
                   {game.info?.["Original Size"] && <span className="chip chip-blue">📦 {game.info["Original Size"]}</span>}
                   {game.downloadLinks?.length > 0 && <span className="chip chip-green">⬇ {game.downloadLinks.length} links</span>}
                 </div>
-                <button
-                  className={`scraper-use-btn ${copied ? "copied" : ""}`}
-                  onClick={sendToAddGame}
-                >
+
+                <button className={`scraper-use-btn ${copied ? "copied" : ""}`} onClick={sendToAddGame}>
                   {copied ? "✓ Redirecting..." : "➕ Use in Add Game"}
                 </button>
               </div>
@@ -248,17 +252,18 @@ export default function GameScraper() {
               {/* Description */}
               {tab === "desc" && (
                 <div className="scraper-desc">
-                  {game.description
-                    ? <>
-                        <p>{game.description}</p>
-                        {game.descriptionSource && (
-                          <p className="scraper-empty" style={{ marginTop: 8 }}>
-                            — Source: {game.descriptionSource === "steam" ? "Steam Store" : "RAWG.io"}
-                          </p>
-                        )}
-                      </>
-                    : <p className="scraper-empty">No description found.</p>
-                  }
+                  {game.description ? (
+                    <>
+                      <p>{game.description}</p>
+                      {descInfo && (
+                        <p className="scraper-empty" style={{ marginTop: 8 }}>
+                          — Source: {descInfo.label}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="scraper-empty">No description found.</p>
+                  )}
                 </div>
               )}
 
@@ -305,9 +310,8 @@ export default function GameScraper() {
               {tab === "images" && (
                 <div className="img-search-panel">
                   <p className="img-search-hint">
-                    Search for high-quality game images from Steam, RAWG, and more. Click any image to set it as Cover or Hero.
+                    Search for high-quality game images from Steam, RAWG, and more.
                   </p>
-
                   <div className="img-search-row">
                     <input
                       className="img-search-input"
@@ -326,7 +330,6 @@ export default function GameScraper() {
                     </button>
                   </div>
 
-                  {/* Selected preview */}
                   {(selectedImages.cover || selectedImages.hero) && (
                     <div className="img-selected-row">
                       {selectedImages.cover && (
@@ -346,41 +349,27 @@ export default function GameScraper() {
                     </div>
                   )}
 
-                  {/* Results — flat grid, every image is its own card */}
                   {imgResults.length > 0 ? (
                     <div className="img-results-grid">
                       {imgResults.map((r, i) => (
                         <div key={i} className="img-result-card">
-                          {/* Source badge */}
                           <div className="img-result-name">
                             {r.title}
-                            {r.source && (
-                              <span className="img-source-badge">{SOURCE_BADGE[r.source] || r.source}</span>
-                            )}
+                            {r.source && <span className="img-source-badge">{SOURCE_BADGE[r.source] || r.source}</span>}
                           </div>
 
-                          {/* Main image (cover / background) */}
-                          <img
-                            src={r.cover}
-                            alt={r.title}
-                            className="img-thumb img-portrait"
-                            onError={e => e.target.style.display = "none"}
-                          />
+                          <img src={r.cover} alt={r.title} className="img-thumb img-portrait"
+                            onError={e => e.target.style.display = "none"} />
                           <div className="img-btn-row">
                             <SelectBtn url={r.cover} type="cover" />
                             <SelectBtn url={r.cover} type="hero" />
                           </div>
 
-                          {/* Capsule / header (landscape) — only show if different from cover */}
                           {r.capsule && r.capsule !== r.cover && (
                             <>
                               <span className="img-result-section-label" style={{ marginTop: 8, display: "block" }}>Landscape Header</span>
-                              <img
-                                src={r.capsule}
-                                alt={`${r.title} header`}
-                                className="img-thumb img-landscape"
-                                onError={e => e.target.style.display = "none"}
-                              />
+                              <img src={r.capsule} alt={`${r.title} header`} className="img-thumb img-landscape"
+                                onError={e => e.target.style.display = "none"} />
                               <div className="img-btn-row">
                                 <SelectBtn url={r.capsule} type="cover" />
                                 <SelectBtn url={r.capsule} type="hero" />
@@ -388,16 +377,11 @@ export default function GameScraper() {
                             </>
                           )}
 
-                          {/* Hero banner — only show if different from both */}
                           {r.hero && r.hero !== r.cover && r.hero !== r.capsule && (
                             <>
                               <span className="img-result-section-label" style={{ marginTop: 8, display: "block" }}>Hero Banner</span>
-                              <img
-                                src={r.hero}
-                                alt={`${r.title} hero`}
-                                className="img-thumb img-landscape"
-                                onError={e => e.target.style.display = "none"}
-                              />
+                              <img src={r.hero} alt={`${r.title} hero`} className="img-thumb img-landscape"
+                                onError={e => e.target.style.display = "none"} />
                               <div className="img-btn-row">
                                 <SelectBtn url={r.hero} type="cover" />
                                 <SelectBtn url={r.hero} type="hero" />
@@ -408,9 +392,7 @@ export default function GameScraper() {
                       ))}
                     </div>
                   ) : (
-                    !imgLoading && (
-                      <p className="scraper-empty">Search for a game to see high-quality images from Steam, RAWG, and more.</p>
-                    )
+                    !imgLoading && <p className="scraper-empty">Search for a game to see high-quality images.</p>
                   )}
                 </div>
               )}
