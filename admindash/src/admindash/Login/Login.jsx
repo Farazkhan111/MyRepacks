@@ -1,6 +1,7 @@
 import axios from "axios";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import url from "../dashboard/url/url";
 
 export default function Login() {
   const [username, setUser] = useState("");
@@ -18,7 +19,7 @@ export default function Login() {
     setLoading(true);
 
     axios
-      .post("https://myrepacks.onrender.com/login", { username, password })
+      .post( url+"/login", { username, password })
       .then((result) => {
         if (result.data === "UserNot") {
           alert("User not found");

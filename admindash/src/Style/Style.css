@@ -1505,3 +1505,45 @@ textarea {
   .ss-grid { grid-template-columns: repeat(2,1fr); }
   .img-results-grid { grid-template-columns: 1fr; }
 }
+/* ── Platform badges (ShowGames table + GameScraper) ─────────── */
+.platform-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-pc     { background: rgba(59,130,246,0.15);  color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+.badge-mobile { background: rgba(167,139,250,0.15); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+
+/* ── Platform filter tabs (ShowGames admin) ──────────────────── */
+.platform-filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.platform-tab-btn {
+  padding: 7px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: rgba(255,255,255,0.55);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.platform-tab-btn:hover  { background: rgba(255,255,255,0.06); color: #fff; }
+.platform-tab-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+/* ── Platform detect badge (GameScraper) ─────────────────────── */
+.platform-detect-badge {
+  text-align: center;
+  font-size: 13px;
+  margin: -4px 0 12px;
+  opacity: 0.85;
+}
+.platform-detect-badge strong { font-weight: 700; }
+

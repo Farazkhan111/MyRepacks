@@ -1,121 +1,145 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+import url from "./url/url";
+
+const API = url;
 
 export default function Edit() {
-  const location = useLocation();
-  const id = location.state;
-  const nav = useNavigate();
+  const [gname,     setName]    = useState("");
+  const [gimage,    setImage]   = useState("");
+  const [gfimage,   setFimage]  = useState("");
+  const [gdes,      setDes]     = useState("");
+  const [gcat,      setCat]     = useState("");
+  const [gplatform, setPlatform]= useState("PC");  // ← NEW
+  const [gtrend,    setTrend]   = useState("");
+  const [glink,     setLink]    = useState("");
+  const [gvideo,    setVideo]   = useState("");
+  const [othername, setOther]   = useState([]);
+  const [alias,     setAlias]   = useState("");
 
-  const [gname, setName] = useState("");
-  const [gimage, setImage] = useState("");
-  const [gfimage, setFimage] = useState("");
-  const [gvideo, setVideo] = useState("");
-  const [glink, setLink] = useState("");
-  const [gdes, setDes] = useState("");
-  const [gcat, setCat] = useState("");
-  const [othername, setOthername] = useState([]);
-  const [currentAlias, setCurrentAlias] = useState("");
+  const nav = useNavigate();
+  const loc = useLocation();
+  const id  = loc.state;
 
   useEffect(() => {
-    axios.post("https://myrepacks.onrender.com/edit", { id })
-      .then((res) => {
-        setName(res.data.name);
-        setImage(res.data.image);
-        setFimage(res.data.fimage);
-        setVideo(res.data.video);
-        setLink(res.data.link);
-        setDes(res.data.description);
-        setCat(res.data.category);
-        setOthername(res.data.othername || []);
-      });
-  }, [id]);
+    if (!localStorage.getItem("admin")) nav("/");
+    if (!id) return;
+    axios.post(`${API}/edit`, { id }).then(res => {
+      const g = res.data;
+      setName(g.name || "");
+      setImage(g.image || "");
+      setFimage(g.fimage || "");
+      setDes(g.description || "");
+      setCat(g.category || "");
+      setPlatform(g.platform || "PC");
+      setTrend(g.trending || "");
+      setLink(g.link || "");
+      setVideo(g.video || "");
+      setOther(g.othername || []);
+    });
+  }, [id, nav]);
 
   function update(e) {
     e.preventDefault();
-
-    axios.post("https://myrepacks.onrender.com/gupdate", {
-      id, gname, gimage, gdes, gcat, gfimage, glink, gvideo, othername
-    }).then(() => nav("/show"));
+    axios.post(`${API}/gupdate`, { id, gname, gimage, gfimage, gdes, gcat, gplatform, gtrend, glink, gvideo, othername });
+    nav("/show");
   }
 
-  const handleAddName = (e) => {
+  const addAlias = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (currentAlias.trim() && !othername.includes(currentAlias)) {
-        setOthername([...othername, currentAlias.trim()]);
-        setCurrentAlias("");
+      if (alias.trim() && !othername.includes(alias.trim())) {
+        setOther([...othername, alias.trim()]);
+        setAlias("");
       }
     }
-  };
-
-  const removeName = (i) => {
-    setOthername(othername.filter((_, index) => index !== i));
   };
 
   return (
     <>
       <Sidebar />
-
-      <div className="main-content add-page">
-
-        <div className="form-container edit-container">
-
-          <h2>✏️ Edit Game</h2>
-
-          {/* Preview */}
-          {gimage && (
-            <div className="preview">
-              <img src={gimage} alt="preview" />
-              <p>Live Preview</p>
-            </div>
-          )}
+      <div className="addgames-main-content">
+        <div className="addgames-form-container">
+          <div className="addgames-header-row">
+            <h2>✏️ Edit Game</h2>
+          </div>
 
           <form onSubmit={update}>
+            <input placeholder="Game Name" value={gname} onChange={e => setName(e.target.value)} />
 
-            <input value={gname} onChange={(e)=>setName(e.target.value)} placeholder="Game Name" />
+            <div className="input-with-preview">
+              <input placeholder="Cover Image URL" value={gimage} onChange={e => setImage(e.target.value)} />
+              {gimage && <img src={gimage} alt="cover" className="img-preview img-preview-portrait" onError={e => e.target.style.display="none"} />}
+            </div>
 
-            <input value={gimage} onChange={(e)=>setImage(e.target.value)} placeholder="Game Image URL" />
+            <div className="input-with-preview">
+              <input placeholder="Hero Image URL" value={gfimage} onChange={e => setFimage(e.target.value)} />
+              {gfimage && <img src={gfimage} alt="hero" className="img-preview img-preview-landscape" onError={e => e.target.style.display="none"} />}
+            </div>
 
-            <input value={gfimage} onChange={(e)=>setFimage(e.target.value)} placeholder="Feature Image URL" />
+            <input placeholder="Video URL" value={gvideo} onChange={e => setVideo(e.target.value)} />
 
-            <input value={gvideo} onChange={(e)=>setVideo(e.target.value)} placeholder="Video URL" />
-
-            {/* Alias */}
-            <div className="alias-box">
-              {othername.map((name, i) => (
-                <span key={i} className="tag">
-                  {name}
-                  <button type="button" onClick={()=>removeName(i)}>×</button>
+            <div className="addgames-alias-box">
+              {othername.map((n, i) => (
+                <span key={i} className="addgames-tag">
+                  {n}
+                  <button type="button" onClick={() => setOther(othername.filter((_, idx) => idx !== i))}>×</button>
                 </span>
               ))}
-
               <input
-                placeholder="Add aliases..."
-                value={currentAlias}
-                onChange={(e)=>setCurrentAlias(e.target.value)}
-                onKeyDown={handleAddName}
+                placeholder="Add aliases (press Enter)..."
+                value={alias}
+                onChange={e => setAlias(e.target.value)}
+                onKeyDown={addAlias}
               />
             </div>
 
-            <textarea value={gdes} onChange={(e)=>setDes(e.target.value)} placeholder="Description" />
+            <textarea placeholder="Description" value={gdes} onChange={e => setDes(e.target.value)} />
 
-            <select  className="bg-dark" value={gcat} onChange={(e)=>setCat(e.target.value)}>
-              <option value="">Select Category</option>
-              <option value="Roleplay">Roleplay</option>
-              <option value="Simulation">Simulation</option>
-              <option value="Sports">Sports</option>
+            {/* Platform */}
+            <select className="bg-dark" value={gplatform} onChange={e => setPlatform(e.target.value)}>
+              <option value="PC">💻 PC</option>
+              <option value="Mobile">📱 Mobile</option>
             </select>
 
-            <input value={glink} onChange={(e)=>setLink(e.target.value)} placeholder="Download Link" />
+            {/* Category (changes based on platform) */}
+            <select className="bg-dark" value={gcat} onChange={e => setCat(e.target.value)}>
+              <option value="">Select Category</option>
+              {gplatform === "PC" ? (
+                <>
+                  <option>Roleplay</option>
+                  <option>Simulation</option>
+                  <option>Sports</option>
+                  <option>Action</option>
+                  <option>Strategy</option>
+                  <option>Adventure</option>
+                </>
+              ) : (
+                <>
+                  <option>Action</option>
+                  <option>Casual</option>
+                  <option>Puzzle</option>
+                  <option>Racing</option>
+                  <option>RPG</option>
+                  <option>Sports</option>
+                  <option>Strategy</option>
+                </>
+              )}
+            </select>
+
+            <select className="bg-dark" value={gtrend} onChange={e => setTrend(e.target.value)}>
+              <option value="">Select Trending</option>
+              <option>Trending</option>
+              <option>Not Trending</option>
+            </select>
+
+            <input placeholder="Download Link" value={glink} onChange={e => setLink(e.target.value)} />
 
             <button type="submit">💾 Update Game</button>
-
           </form>
-
         </div>
-
       </div>
     </>
   );

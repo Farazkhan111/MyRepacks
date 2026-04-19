@@ -1,41 +1,44 @@
 import React, { useState } from "react";
 import Sidebar from "./Sidebar";
 import { useNavigate } from "react-router-dom";
+import url from "./url/url";
 
-const API = "https://myrepacks.onrender.com";
+const API = url;
+
+const MOBILE_HOSTS = [
+  "apkpure", "apkcombo", "apkmody", "apkmirror", "happymod",
+  "an1.com", "revdl", "androidappsapk", "apkdone", "rexdl",
+  "mob.org", "apknite", "apksfull",
+];
+
+function detectPlatform(inputUrl) {
+  try {
+    const host = new URL(inputUrl).hostname.toLowerCase();
+    return MOBILE_HOSTS.some(h => host.includes(h)) ? "Mobile" : "PC";
+  } catch (_) { return "PC"; }
+}
 
 const INFO_MAP = {
-  Genres: "🎮 Genres",
-  Tags: "🏷️ Tags",
-  Companies: "🏢 Company",
-  Company: "🏢 Company",
-  Languages: "🌐 Languages",
-  "Original Size": "📦 Original Size",
-  "Repack Size": "📁 Repack Size",
-  "HDD Space": "💾 HDD Space",
-  Version: "🔖 Version",
-  Crack: "🔓 Crack",
+  Genres: "🎮 Genres", Tags: "🏷️ Tags", Languages: "🌐 Languages",
+  "Original Size": "📦 Original Size", "Repack Size": "📁 Repack Size",
+  "HDD Space": "💾 HDD Space", Version: "🔖 Version", Crack: "🔓 Crack",
+  Developer: "👨‍💻 Developer", Publisher: "🏢 Publisher",
+  "Release Date": "📅 Release Date", Size: "📦 Size",
+  "Requires Android": "🤖 Android", Category: "📂 Category",
 };
 
-const SOURCE_BADGE = {
-  steam: "🎮 Steam",
-  ai: "🤖 AI",
-  web: "🌐 Web",
-};
+const SOURCE_BADGE = { steam: "🎮 Steam", playstore: "▶ Play Store", ai: "🤖 AI", web: "🌐 Web" };
 
-// ── SelectBtn MUST be outside GameScraper to avoid re-render bugs ──
 function SelectBtn({ url, type, selectedImages, setSelectedImages }) {
   const isSelected = selectedImages[type] === url;
   return (
     <button
       className={`img-select-btn ${isSelected ? "selected" : ""}`}
-      onClick={() =>
-        setSelectedImages(prev => ({ ...prev, [type]: isSelected ? "" : url }))
-      }
+      onClick={() => setSelectedImages(prev => ({ ...prev, [type]: isSelected ? "" : url }))}
     >
       {isSelected
         ? `✓ Selected as ${type === "cover" ? "Cover" : "Hero"}`
-        : `Set as ${type === "cover" ? "Cover (image)" : "Hero (fimage)"}`}
+        : `Set as ${type === "cover" ? "Cover" : "Hero"}`}
     </button>
   );
 }
@@ -43,43 +46,37 @@ function SelectBtn({ url, type, selectedImages, setSelectedImages }) {
 export default function GameScraper() {
   const nav = useNavigate();
 
-  // Scrape state
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [game, setGame] = useState(null);
-  const [tab, setTab] = useState("info");
+  const [inputUrl,       setInputUrl]      = useState("");
+  const [loading,        setLoading]       = useState(false);
+  const [error,          setError]         = useState(null);
+  const [game,           setGame]          = useState(null);
+  const [tab,            setTab]           = useState("info");
+  const [detectedPlat,   setDetectedPlat]  = useState("PC");
 
-  // Image search state
-  const [imgQuery, setImgQuery] = useState("");
-  const [imgLoading, setImgLoading] = useState(false);
-  const [imgResults, setImgResults] = useState([]);
-  const [selectedImages, setSelectedImages] = useState({ cover: "", hero: "" });
+  const [imgQuery,       setImgQuery]      = useState("");
+  const [imgLoading,     setImgLoading]    = useState(false);
+  const [imgResults,     setImgResults]    = useState([]);
+  const [selectedImages, setSelectedImages]= useState({ cover: "", hero: "" });
 
-  // Description search state
-  const [descQuery, setDescQuery] = useState("");
-  const [descLoading, setDescLoading] = useState(false);
-  const [descResults, setDescResults] = useState([]);
-  const [selectedDesc, setSelectedDesc] = useState("");
+  const [descQuery,      setDescQuery]     = useState("");
+  const [descLoading,    setDescLoading]   = useState(false);
+  const [descResults,    setDescResults]   = useState([]);
+  const [selectedDesc,   setSelectedDesc]  = useState("");
+  const [copied,         setCopied]        = useState(false);
 
-  const [copied, setCopied] = useState(false);
-
-  // ── Scrape ───────────────────────────────────────────────────────
+  // ── Scrape ───────────────────────────────────────────────────
   async function handleScrape() {
-    if (!url.trim()) return;
-    setLoading(true);
-    setError(null);
-    setGame(null);
-    setImgResults([]);
-    setSelectedImages({ cover: "", hero: "" });
-    setDescResults([]);
-    setSelectedDesc("");
+    if (!inputUrl.trim()) return;
+    const platform = detectPlatform(inputUrl);
+    setDetectedPlat(platform);
+    setLoading(true); setError(null); setGame(null);
+    setImgResults([]); setSelectedImages({ cover: "", hero: "" });
+    setDescResults([]); setSelectedDesc("");
 
     try {
-      const res = await fetch(`${API}/scrape`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+      const res  = await fetch(`${API}/scrape`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: inputUrl.trim() }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Scrape failed");
@@ -87,82 +84,58 @@ export default function GameScraper() {
       setGame(json.data);
       setImgQuery(json.data.title || "");
       setDescQuery(json.data.title || "");
-
-      // Pre-load the scraped description as the first result
-      if (json.data.description) {
-        setDescResults([{
-          text: json.data.description,
-          source: json.data.descriptionSource || "web",
-        }]);
-      }
+      if (json.data.description)
+        setDescResults([{ text: json.data.description, source: json.data.descriptionSource || "web" }]);
       setTab("info");
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { setError(e.message); }
+    finally     { setLoading(false); }
   }
 
-  // ── Description search ──────────────────────────────────────────
+  // ── Description search ───────────────────────────────────────
   async function handleDescSearch() {
     if (!descQuery.trim()) return;
     setDescLoading(true);
-
     try {
-      const res = await fetch(`${API}/descsearch`, {   // ← correct endpoint
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameName: descQuery.trim() }),
+      const res  = await fetch(`${API}/descsearch`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameName: descQuery.trim(), platform: detectedPlat }),
       });
       const json = await res.json();
-
-      // Merge with existing web description if present, deduplicate
       const fresh = json.results || [];
       setDescResults(prev => {
         const existing = prev.filter(r => r.source === "web");
-        const newItems = fresh.filter(r =>
-          !existing.some(e => e.text === r.text)
-        );
-        return [...existing, ...newItems];
+        return [...existing, ...fresh.filter(r => !existing.some(e => e.text === r.text))];
       });
-    } catch (e) {
-      // keep existing results on error
-    } finally {
-      setDescLoading(false);
-    }
+    } catch (_) {}
+    finally { setDescLoading(false); }
   }
 
-  // ── Image search ────────────────────────────────────────────────
+  // ── Image search ─────────────────────────────────────────────
   async function handleImageSearch() {
     if (!imgQuery.trim()) return;
-    setImgLoading(true);
-    setImgResults([]);
-
+    setImgLoading(true); setImgResults([]);
     try {
-      const res = await fetch(`${API}/imagesuggest`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameName: imgQuery.trim() }),
+      const res  = await fetch(`${API}/imagesuggest`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameName: imgQuery.trim(), platform: detectedPlat }),
       });
       const json = await res.json();
       setImgResults(json.results || []);
-    } catch (e) {
-      setImgResults([]);
-    } finally {
-      setImgLoading(false);
-    }
+    } catch (_) { setImgResults([]); }
+    finally { setImgLoading(false); }
   }
 
-  // ── Send to AddGame ─────────────────────────────────────────────
+  // ── Send to AddGame ──────────────────────────────────────────
   function sendToAddGame() {
     if (!game) return;
     const payload = {
-      gname: game.title || "",
-      gdes: selectedDesc || game.description || "",
-      gimage: selectedImages.cover || game.cover || "",
-      gfimage: selectedImages.hero || game.cover || "",
-      gcat: inferCategory(game.info?.Genres || game.info?.Tags || ""),
-      glink: game.downloadLinks?.[0]?.url || "",
+      gname:     game.title || "",
+      gdes:      selectedDesc || game.description || "",
+      gimage:    selectedImages.cover  || game.cover  || "",
+      gfimage:   selectedImages.hero   || game.fimage || game.cover || "",
+      gplatform: game.platform || detectedPlat,
+      gcat:      inferCategory(game.info?.Genres || game.info?.Category || ""),
+      glink:     game.downloadLinks?.[0]?.url || "",
       othername: [],
     };
     sessionStorage.setItem("scraped_game", JSON.stringify(payload));
@@ -172,22 +145,28 @@ export default function GameScraper() {
 
   function inferCategory(genres) {
     const g = (genres || "").toLowerCase();
-    if (g.includes("sport")) return "Sports";
-    if (g.includes("simulat")) return "Simulation";
-    if (g.includes("role") || g.includes("rpg")) return "Roleplay";
+    if (g.includes("sport"))                      return "Sports";
+    if (g.includes("simulat"))                    return "Simulation";
+    if (g.includes("role") || g.includes("rpg"))  return "Roleplay";
+    if (g.includes("action"))                     return "Action";
+    if (g.includes("strateg"))                    return "Strategy";
+    if (g.includes("casual"))                     return "Casual";
+    if (g.includes("puzzle"))                     return "Puzzle";
+    if (g.includes("racing"))                     return "Racing";
     return "";
   }
 
-  // ── Render ───────────────────────────────────────────────────────
+  const platformColor = detectedPlat === "Mobile" ? "#a78bfa" : "#60a5fa";
+  const platformIcon  = detectedPlat === "Mobile" ? "📱" : "💻";
+
   return (
     <>
       <Sidebar />
       <div className="scraper-page">
 
-        {/* Header */}
         <div className="scraper-header">
           <h2 className="scraper-title">🔗 Game Link Scraper</h2>
-          <p className="scraper-sub">Paste a FitGirl Repacks URL to auto-fill game data</p>
+          <p className="scraper-sub">Paste any repack (PC) or APK site (Mobile) URL to auto-fill game data</p>
         </div>
 
         {/* URL input */}
@@ -197,31 +176,32 @@ export default function GameScraper() {
             <input
               className="scraper-url-input"
               type="url"
-              placeholder="https://fitgirl-repacks.site/game-name/"
-              value={url}
-              onChange={e => setUrl(e.target.value)}
+              placeholder="https://fitgirl-repacks.site/...  or  https://apkpure.com/..."
+              value={inputUrl}
+              onChange={e => { setInputUrl(e.target.value); setDetectedPlat(detectPlatform(e.target.value)); }}
               onKeyDown={e => e.key === "Enter" && handleScrape()}
             />
-            {url && (
-              <button className="scraper-clear"
-                onClick={() => { setUrl(""); setGame(null); setError(null); }}>
-                ✕
-              </button>
+            {inputUrl && (
+              <button className="scraper-clear" onClick={() => { setInputUrl(""); setGame(null); setError(null); }}>✕</button>
             )}
           </div>
           <button
             className={`scraper-fetch-btn ${loading ? "loading" : ""}`}
             onClick={handleScrape}
-            disabled={loading || !url.trim()}
+            disabled={loading || !inputUrl.trim()}
           >
             {loading ? <span className="spin" /> : "⬇ Fetch"}
           </button>
         </div>
 
-        {/* Error */}
-        {error && <div className="scraper-error">⚠️ {error}</div>}
+        {/* Platform indicator */}
+        {inputUrl && (
+          <div className="platform-detect-badge" style={{ color: platformColor }}>
+            {platformIcon} Detected: <strong>{detectedPlat}</strong> game
+          </div>
+        )}
 
-        {/* Skeleton */}
+        {error  && <div className="scraper-error">⚠️ {error}</div>}
         {loading && (
           <div className="scraper-skeleton">
             <div className="sk sk-cover" />
@@ -233,28 +213,25 @@ export default function GameScraper() {
           </div>
         )}
 
-        {/* Result */}
         {game && !loading && (
           <div className="scraper-result">
 
-            {/* Game hero row */}
+            {/* Hero row */}
             <div className="scraper-game-hero">
               {game.cover && (
-                <img
-                  src={game.cover}
-                  alt={game.title}
-                  className="scraper-cover"
-                  onError={e => (e.target.style.display = "none")}
-                />
+                <img src={game.cover} alt={game.title} className="scraper-cover"
+                  onError={e => (e.target.style.display = "none")} />
               )}
               <div className="scraper-game-info">
                 <h3 className="scraper-game-name">{game.title}</h3>
-                <a
-                  href={game.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="scraper-source-link"
-                >
+
+                {/* Platform badge */}
+                <span className={`platform-badge ${game.platform === "Mobile" ? "badge-mobile" : "badge-pc"}`}
+                  style={{ marginBottom: 6, display: "inline-block" }}>
+                  {game.platform === "Mobile" ? "📱 Mobile Game" : "💻 PC Game"}
+                </span>
+
+                <a href={game.sourceUrl} target="_blank" rel="noopener noreferrer" className="scraper-source-link">
                   {game.sourceUrl}
                 </a>
 
@@ -263,26 +240,12 @@ export default function GameScraper() {
                     ? <span className="chip chip-green">✅ Description selected</span>
                     : game.description
                       ? <span className="chip chip-purple">🌐 Description ready</span>
-                      : <span className="chip chip-amber">⚠️ No description</span>
-                  }
-                  {(selectedImages.cover || selectedImages.hero) && (
-                    <span className="chip chip-green">🖼 Image selected</span>
-                  )}
-                  {game.info?.["Repack Size"] && (
-                    <span className="chip chip-amber">📁 {game.info["Repack Size"]}</span>
-                  )}
-                  {game.info?.["Original Size"] && (
-                    <span className="chip chip-blue">📦 {game.info["Original Size"]}</span>
-                  )}
-                  {game.downloadLinks?.length > 0 && (
-                    <span className="chip chip-green">⬇ {game.downloadLinks.length} links</span>
-                  )}
+                      : <span className="chip chip-amber">⚠️ No description</span>}
+                  {(selectedImages.cover || selectedImages.hero) && <span className="chip chip-green">🖼 Image selected</span>}
+                  {game.downloadLinks?.length > 0 && <span className="chip chip-green">⬇ {game.downloadLinks.length} links</span>}
                 </div>
 
-                <button
-                  className={`scraper-use-btn ${copied ? "copied" : ""}`}
-                  onClick={sendToAddGame}
-                >
+                <button className={`scraper-use-btn ${copied ? "copied" : ""}`} onClick={sendToAddGame}>
                   {copied ? "✓ Redirecting..." : "➕ Use in Add Game"}
                 </button>
               </div>
@@ -297,19 +260,14 @@ export default function GameScraper() {
                 { id: "screenshots", label: `🖼 Screenshots (${game.screenshots?.length || 0})` },
                 { id: "images",      label: "🔍 Image Search" },
               ].map(t => (
-                <button
-                  key={t.id}
-                  className={`scraper-tab ${tab === t.id ? "active" : ""}`}
-                  onClick={() => setTab(t.id)}
-                >
-                  {t.label}
-                </button>
+                <button key={t.id} className={`scraper-tab ${tab === t.id ? "active" : ""}`}
+                  onClick={() => setTab(t.id)}>{t.label}</button>
               ))}
             </div>
 
             <div className="scraper-tab-body">
 
-              {/* ── Info ── */}
+              {/* Info */}
               {tab === "info" && (
                 <div className="info-grid">
                   {Object.entries(game.info || {}).length > 0
@@ -319,279 +277,156 @@ export default function GameScraper() {
                           <span className="info-value">{v}</span>
                         </div>
                       ))
-                    : <p className="scraper-empty">No structured info found on this page.</p>
-                  }
+                    : <p className="scraper-empty">No structured info found.</p>}
                 </div>
               )}
 
-              {/* ── Description ── */}
+              {/* Description */}
               {tab === "desc" && (
                 <div className="img-search-panel">
-                  <p className="img-search-hint">
-                    The description below was fetched automatically. You can also search for
-                    Steam or AI-generated alternatives and pick the best one.
-                  </p>
-
-                  {/* Search bar */}
                   <div className="img-search-row">
-                    <input
-                      className="img-search-input"
-                      type="text"
+                    <input className="img-search-input" type="text"
                       placeholder="Game name to search description..."
-                      value={descQuery}
-                      onChange={e => setDescQuery(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && handleDescSearch()}
-                    />
-                    <button
-                      className={`img-search-btn ${descLoading ? "loading" : ""}`}
-                      onClick={handleDescSearch}
-                      disabled={descLoading || !descQuery.trim()}
-                    >
+                      value={descQuery} onChange={e => setDescQuery(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleDescSearch()} />
+                    <button className={`img-search-btn ${descLoading ? "loading" : ""}`}
+                      onClick={handleDescSearch} disabled={descLoading || !descQuery.trim()}>
                       {descLoading ? <span className="spin" /> : "🔍 Search"}
                     </button>
                   </div>
 
-                  {/* Selected description preview */}
                   {selectedDesc && (
                     <div className="img-selected-row">
                       <div className="img-selected-item" style={{ width: "100%" }}>
                         <span className="img-selected-label">✅ Selected Description</span>
-                        <p style={{ margin: "6px 0 8px", fontSize: 13, lineHeight: 1.65, color: "#eee" }}>
-                          {selectedDesc}
-                        </p>
-                        <button className="img-deselect" onClick={() => setSelectedDesc("")}>
-                          ✕ Remove
-                        </button>
+                        <p style={{ margin: "6px 0 8px", fontSize: 13, lineHeight: 1.65, color: "#eee" }}>{selectedDesc}</p>
+                        <button className="img-deselect" onClick={() => setSelectedDesc("")}>✕ Remove</button>
                       </div>
                     </div>
                   )}
 
-                  {/* Description results */}
                   {descResults.length > 0 ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
                       {descResults.map((r, i) => {
                         const isSelected = selectedDesc === r.text;
                         return (
                           <div key={i} className="img-result-card" style={{ padding: "14px 16px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                              <span className="img-source-badge">
-                                {SOURCE_BADGE[r.source] || r.source}
-                              </span>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                              <span className="img-source-badge">{SOURCE_BADGE[r.source] || r.source}</span>
                               <span style={{ fontSize: 11, opacity: 0.45 }}>Option {i + 1}</span>
                             </div>
-                            <p style={{ margin: "0 0 10px", fontSize: 13, lineHeight: 1.65, color: "#eee" }}>
-                              {r.text}
-                            </p>
-                            <button
-                              className={`img-select-btn ${isSelected ? "selected" : ""}`}
+                            <p style={{ margin: "0 0 10px", fontSize: 13, lineHeight: 1.65, color: "#eee" }}>{r.text}</p>
+                            <button className={`img-select-btn ${isSelected ? "selected" : ""}`}
                               style={{ width: "100%" }}
-                              onClick={() => setSelectedDesc(isSelected ? "" : r.text)}
-                            >
-                              {isSelected ? "✓ Selected as Description" : "📝 Use this Description"}
+                              onClick={() => setSelectedDesc(isSelected ? "" : r.text)}>
+                              {isSelected ? "✓ Selected" : "📝 Use this Description"}
                             </button>
                           </div>
                         );
                       })}
                     </div>
-                  ) : (
-                    !descLoading && (
-                      <p className="scraper-empty">
-                        Click Search to fetch Steam + AI descriptions for this game.
-                      </p>
-                    )
-                  )}
+                  ) : !descLoading && <p className="scraper-empty">Click Search to fetch descriptions.</p>}
                 </div>
               )}
 
-              {/* ── Downloads ── */}
+              {/* Downloads */}
               {tab === "downloads" && (
                 <div className="dl-list">
                   {game.magnet && (
                     <div className="magnet-row">
                       <span>🧲 Magnet link available</span>
-                      <button onClick={() => navigator.clipboard.writeText(game.magnet)}>
-                        📋 Copy
-                      </button>
+                      <button onClick={() => navigator.clipboard.writeText(game.magnet)}>📋 Copy</button>
                     </div>
                   )}
                   {game.downloadLinks?.length > 0
                     ? game.downloadLinks.map((l, i) => (
-                        <a
-                          key={i}
-                          href={l.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="dl-item"
-                        >
+                        <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="dl-item">
                           <span className="dl-num">{String(i + 1).padStart(2, "0")}</span>
                           <span className="dl-label">{l.label || l.url}</span>
                           <span className="dl-arrow">→</span>
                         </a>
                       ))
-                    : <p className="scraper-empty">No download links found.</p>
-                  }
+                    : <p className="scraper-empty">No download links found.</p>}
                 </div>
               )}
 
-              {/* ── Screenshots ── */}
+              {/* Screenshots */}
               {tab === "screenshots" && (
                 <div className="ss-grid">
                   {game.screenshots?.length > 0
                     ? game.screenshots.map((src, i) => (
                         <a key={i} href={src} target="_blank" rel="noopener noreferrer">
-                          <img
-                            src={src}
-                            alt={`Screenshot ${i + 1}`}
-                            className="ss-img"
-                            onError={e => (e.target.parentElement.style.display = "none")}
-                          />
+                          <img src={src} alt={`Screenshot ${i + 1}`} className="ss-img"
+                            onError={e => (e.target.parentElement.style.display = "none")} />
                         </a>
                       ))
-                    : <p className="scraper-empty">No screenshots found.</p>
-                  }
+                    : <p className="scraper-empty">No screenshots found.</p>}
                 </div>
               )}
 
-              {/* ── Image Search ── */}
+              {/* Image Search */}
               {tab === "images" && (
                 <div className="img-search-panel">
-                  <p className="img-search-hint">
-                    Search Steam for high-quality cover and hero images.
-                  </p>
-
                   <div className="img-search-row">
-                    <input
-                      className="img-search-input"
-                      type="text"
+                    <input className="img-search-input" type="text"
                       placeholder="Game name to search images..."
-                      value={imgQuery}
-                      onChange={e => setImgQuery(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && handleImageSearch()}
-                    />
-                    <button
-                      className={`img-search-btn ${imgLoading ? "loading" : ""}`}
-                      onClick={handleImageSearch}
-                      disabled={imgLoading || !imgQuery.trim()}
-                    >
+                      value={imgQuery} onChange={e => setImgQuery(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleImageSearch()} />
+                    <button className={`img-search-btn ${imgLoading ? "loading" : ""}`}
+                      onClick={handleImageSearch} disabled={imgLoading || !imgQuery.trim()}>
                       {imgLoading ? <span className="spin" /> : "🔍 Search"}
                     </button>
                   </div>
 
-                  {/* Selected images preview */}
                   {(selectedImages.cover || selectedImages.hero) && (
                     <div className="img-selected-row">
                       {selectedImages.cover && (
                         <div className="img-selected-item">
-                          <span className="img-selected-label">✅ Cover (image)</span>
-                          <img
-                            src={selectedImages.cover}
-                            alt="cover"
-                            className="img-selected-thumb"
-                          />
-                          <button
-                            className="img-deselect"
-                            onClick={() => setSelectedImages(p => ({ ...p, cover: "" }))}
-                          >
-                            ✕ Remove
-                          </button>
+                          <span className="img-selected-label">✅ Cover</span>
+                          <img src={selectedImages.cover} alt="cover" className="img-selected-thumb" />
+                          <button className="img-deselect" onClick={() => setSelectedImages(p => ({ ...p, cover: "" }))}>✕</button>
                         </div>
                       )}
                       {selectedImages.hero && (
                         <div className="img-selected-item">
-                          <span className="img-selected-label">✅ Hero (fimage)</span>
-                          <img
-                            src={selectedImages.hero}
-                            alt="hero"
-                            className="img-selected-thumb img-selected-wide"
-                          />
-                          <button
-                            className="img-deselect"
-                            onClick={() => setSelectedImages(p => ({ ...p, hero: "" }))}
-                          >
-                            ✕ Remove
-                          </button>
+                          <span className="img-selected-label">✅ Hero</span>
+                          <img src={selectedImages.hero} alt="hero" className="img-selected-thumb img-selected-wide" />
+                          <button className="img-deselect" onClick={() => setSelectedImages(p => ({ ...p, hero: "" }))}>✕</button>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* Results */}
                   {imgResults.length > 0 ? (
                     <div className="img-results-grid">
                       {imgResults.map((r, i) => (
                         <div key={i} className="img-result-card">
                           <div className="img-result-name">
                             {r.title}
-                            {r.source && (
-                              <span className="img-source-badge">
-                                {SOURCE_BADGE[r.source] || r.source}
-                              </span>
-                            )}
+                            {r.source && <span className="img-source-badge">{SOURCE_BADGE[r.source] || r.source}</span>}
                           </div>
-
-                          {/* Portrait cover */}
-                          <span className="img-result-section-label">Portrait Cover</span>
-                          <img
-                            src={r.cover}
-                            alt={r.title}
-                            className="img-thumb img-portrait"
-                            onError={e => (e.target.style.display = "none")}
-                          />
+                          <img src={r.cover} alt={r.title} className="img-thumb img-portrait"
+                            onError={e => (e.target.style.display = "none")} />
                           <div className="img-btn-row">
                             <SelectBtn url={r.cover} type="cover" selectedImages={selectedImages} setSelectedImages={setSelectedImages} />
                             <SelectBtn url={r.cover} type="hero"  selectedImages={selectedImages} setSelectedImages={setSelectedImages} />
                           </div>
-
-                          {/* Landscape capsule */}
                           {r.capsule && r.capsule !== r.cover && (
                             <>
-                              <span className="img-result-section-label" style={{ marginTop: 10, display: "block" }}>
-                                Landscape Header
-                              </span>
-                              <img
-                                src={r.capsule}
-                                alt={`${r.title} header`}
-                                className="img-thumb img-landscape"
-                                onError={e => (e.target.style.display = "none")}
-                              />
+                              <img src={r.capsule} alt="capsule" className="img-thumb img-landscape"
+                                onError={e => (e.target.style.display = "none")} />
                               <div className="img-btn-row">
                                 <SelectBtn url={r.capsule} type="cover" selectedImages={selectedImages} setSelectedImages={setSelectedImages} />
                                 <SelectBtn url={r.capsule} type="hero"  selectedImages={selectedImages} setSelectedImages={setSelectedImages} />
                               </div>
                             </>
                           )}
-
-                          {/* Hero banner */}
-                          {r.hero && r.hero !== r.cover && r.hero !== r.capsule && (
-                            <>
-                              <span className="img-result-section-label" style={{ marginTop: 10, display: "block" }}>
-                                Hero Banner
-                              </span>
-                              <img
-                                src={r.hero}
-                                alt={`${r.title} hero`}
-                                className="img-thumb img-landscape"
-                                onError={e => (e.target.style.display = "none")}
-                              />
-                              <div className="img-btn-row">
-                                <SelectBtn url={r.hero} type="cover" selectedImages={selectedImages} setSelectedImages={setSelectedImages} />
-                                <SelectBtn url={r.hero} type="hero"  selectedImages={selectedImages} setSelectedImages={setSelectedImages} />
-                              </div>
-                            </>
-                          )}
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    !imgLoading && (
-                      <p className="scraper-empty">
-                        Search for a game name to see high-quality Steam images.
-                      </p>
-                    )
-                  )}
+                  ) : !imgLoading && <p className="scraper-empty">Search for a game to see images.</p>}
                 </div>
               )}
-
             </div>
           </div>
         )}

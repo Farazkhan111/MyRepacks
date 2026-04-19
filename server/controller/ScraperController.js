@@ -1,49 +1,121 @@
 require("dotenv").config();
 
-const axios = require("axios");
-const cheerio = require("cheerio");
+const axios    = require("axios");
+const cheerio  = require("cheerio");
 const Anthropic = require("@anthropic-ai/sdk");
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ── Shared axios headers (prevents Steam/Cloudflare 403s) ────────
+// ── Headers ──────────────────────────────────────────────────────
 const BROWSER_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  Accept:            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   "Accept-Language": "en-US,en;q=0.9",
-  Referer: "https://www.google.com/",
+  Referer:           "https://www.google.com/",
 };
+const JSON_HEADERS = { "User-Agent": "Mozilla/5.0", Accept: "application/json" };
 
-const JSON_HEADERS = {
-  "User-Agent": "Mozilla/5.0",
-  Accept: "application/json",
-};
+// ── Known torrent tracker hostnames ─────────────────────────────
+const TORRENT_HOSTS = [
+  "1337x", "rarbg", "nyaa", "thepiratebay", "tpb", "rutracker",
+  "limetorrents", "torrentgalaxy", "torrentz2", "kickass", "kat.",
+  "btdig", "fitgirl-repacks", "dodi-repacks", "gog-games",
+  "scene-rls", "skidrowreloaded", "steamrip", "freegogpcgames",
+];
+
+// ── Detect if URL is a mobile game source ───────────────────────
+const MOBILE_HOSTS = [
+  "apkpure", "apkcombo", "apkmody", "apkmirror", "happymod",
+  "an1.com", "revdl", "androidappsapk", "apkdone", "rexdl",
+  "mob.org", "apknite", "apksfull", "apkgk", "apkfollow",
+];
+
+function isMobileURL(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return MOBILE_HOSTS.some(h => host.includes(h));
+  } catch (_) { return false; }
+}
 
 // ── Helpers ──────────────────────────────────────────────────────
 function clean(str) {
   return str?.replace(/\s+/g, " ").trim() || "";
 }
 
+// ── Extract description from ANY site ───────────────────────────
 function extractDescription($, contentEl) {
   let text = "";
-  contentEl.find("p").each((_, el) => {
-    const t = clean($(el).text());
-    if (t.length < 80 || /download|repack|install|torrent|magnet/i.test(t)) return;
-    text += t + "\n\n";
-  });
+  const candidates = [
+    contentEl,
+    $("article").first(),
+    $(".post-content, .entry-content, .content, .game-description, #description, .overview, .detail-desc").first(),
+    $("main").first(),
+  ];
+  for (const el of candidates) {
+    if (!el || !el.length) continue;
+    el.find("p").each((_, p) => {
+      const t = clean($(p).text());
+      if (t.length < 60 || /download|install|torrent|magnet|click here|mirror|apk/i.test(t)) return;
+      text += t + "\n\n";
+    });
+    if (text.length > 100) break;
+  }
   return text.slice(0, 1500);
 }
 
-function extractDownloadLinks($, contentEl) {
+// ── Extract ONLY torrent / magnet links (PC games) ──────────────
+function extractDownloadLinks($) {
   const links = [];
-  contentEl.find("a[href]").each((_, el) => {
-    const href = $(el).attr("href") || "";
+  const seen  = new Set();
+
+  function push(label, url) {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    links.push({ label: label || url, url });
+  }
+
+  $("a[href]").each((_, el) => {
+    const href = clean($(el).attr("href") || "");
     const text = clean($(el).text());
-    const hosts = [ "torrent"];
-    if (hosts.some(h => href.includes(h))) {
-      links.push({ label: text || href, url: href });
-    }
+
+    if (/\.torrent(\?.*)?$/i.test(href)) { push(text || "Download .torrent", href); return; }
+    if (href.startsWith("magnet:?"))      { push(text || "Magnet link", href);       return; }
+    if (/[/?&=]torrent/i.test(href))      { push(text || href, href);                return; }
+
+    try {
+      const hostname = new URL(href).hostname.toLowerCase();
+      if (TORRENT_HOSTS.some(h => hostname.includes(h))) push(text || href, href);
+    } catch (_) {}
   });
+
+  return links;
+}
+
+// ── Extract APK / mobile download links ─────────────────────────
+function extractMobileDownloadLinks($) {
+  const links = [];
+  const seen  = new Set();
+
+  function push(label, url) {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    links.push({ label: label || url, url });
+  }
+
+  $("a[href]").each((_, el) => {
+    const href = clean($(el).attr("href") || "");
+    const text = clean($(el).text());
+
+    // Direct APK file
+    if (/\.apk(\?.*)?$/i.test(href)) { push(text || "Download APK", href); return; }
+
+    // Download button patterns
+    if (/download/i.test(text) && href.length > 10) { push(text, href); return; }
+
+    // OBB / xapk / zip for mobile
+    if (/\.(obb|xapk|apks)(\?.*)?$/i.test(href)) { push(text || "Download OBB/XAPK", href); }
+  });
+
   return links;
 }
 
@@ -52,15 +124,139 @@ function extractMagnet(html) {
   return m ? m[0] : null;
 }
 
-// ── AI description (always available as fallback) ────────────────
-async function fetchAIDescription(title) {
+// ── Parse PC game HTML (FitGirl / DODI / any repack site) ────────
+function parsePCGame(html, url) {
+  const $ = cheerio.load(html);
+
+  const title =
+    clean($("h1.entry-title").text())  ||
+    clean($("h1.post-title").text())   ||
+    clean($("h1").first().text())      ||
+    clean($("meta[property='og:title']").attr("content")) ||
+    "Unknown Title";
+
+  const cover =
+    $("img.wp-post-image").attr("src")                 ||
+    $("meta[property='og:image']").attr("content")     ||
+    $(".post-thumbnail img, .cover img").first().attr("src") ||
+    null;
+
+  const contentEl =
+    $(".entry-content").first().length   ? $(".entry-content").first()  :
+    $(".post-content").first().length    ? $(".post-content").first()    :
+    $(".article-content").first().length ? $(".article-content").first() :
+    $("article").first().length          ? $("article").first()          :
+    $("main").first();
+
+  const description = extractDescription($, contentEl);
+
+  const info = {};
+  contentEl.find("li, p, td").each((_, el) => {
+    const txt = clean($(el).text());
+    ["Genres", "Genre", "Languages", "Language", "Repack Size", "Original Size",
+     "Version", "HDD Space", "Crack", "Developer", "Publisher", "Release Date"].forEach(k => {
+      if (txt.toLowerCase().startsWith(k.toLowerCase() + ":") && !info[k]) {
+        info[k] = txt.slice(k.length + 1).trim();
+      }
+    });
+  });
+
+  const screenshots = [];
+  contentEl.find("img").each((_, el) => {
+    const src = $(el).attr("src") || $(el).attr("data-src") || $(el).attr("data-lazy-src");
+    if (src && !src.includes("logo") && !src.includes("icon") && src !== cover && screenshots.length < 8)
+      screenshots.push(src);
+  });
+
+  const downloadLinks = extractDownloadLinks($);
+  const magnet        = extractMagnet(html);
+  if (magnet && !downloadLinks.some(l => l.url === magnet))
+    downloadLinks.unshift({ label: "Magnet link", url: magnet });
+
+  return { title, cover, description, info, screenshots, downloadLinks, magnet, sourceUrl: url, platform: "PC" };
+}
+
+// ── Parse Mobile game HTML (APKPure / APKCombo / APKMirror etc.) ─
+function parseMobileGame(html, url) {
+  const $ = cheerio.load(html);
+
+  // Title — try site-specific selectors first then fall back
+  const title =
+    clean($(".title-like h1").text())          ||
+    clean($("h1.game_name").text())            ||
+    clean($("h1.app-name").text())             ||
+    clean($(".details-app-name h1").text())    ||
+    clean($("h1.title").text())                ||
+    clean($("h1").first().text())              ||
+    clean($("meta[property='og:title']").attr("content")) ||
+    "Unknown Title";
+
+  // Cover image
+  const cover =
+    $("meta[property='og:image']").attr("content")              ||
+    $(".apk-icon img, .app-icon img, .game-icon img").first().attr("src") ||
+    $(".icon img").first().attr("src")                           ||
+    null;
+
+  // Hero image (landscape screenshot used as banner)
+  const firstScreenshot =
+    $(".screenshot img, .preview-img img, .ss-image img").first().attr("src") ||
+    $(".game-screenshots img").first().attr("src")               ||
+    null;
+
+  // Content container
+  const contentEl =
+    $(".description, .app-description, .detail-desc, .intro").first().length
+      ? $(".description, .app-description, .detail-desc, .intro").first()
+      : $("main").first();
+
+  const description = extractDescription($, contentEl);
+
+  // Structured info
+  const info = {};
+  $(".apk-detail-info li, .info-list li, .detail-list li, table tr").each((_, el) => {
+    const txt = clean($(el).text());
+    ["Version", "Size", "Requires Android", "Updated", "Developer",
+     "Category", "Genre", "Downloads", "Rating"].forEach(k => {
+      if (txt.toLowerCase().startsWith(k.toLowerCase()) && !info[k]) {
+        info[k] = txt.replace(new RegExp(k + ":?\\s*", "i"), "").trim();
+      }
+    });
+  });
+
+  // Screenshots
+  const screenshots = [];
+  $(".screenshot img, .preview-img img, .ss-image img, .game-screenshots img").each((_, el) => {
+    const src = $(el).attr("src") || $(el).attr("data-src");
+    if (src && src !== cover && screenshots.length < 8) screenshots.push(src);
+  });
+
+  const downloadLinks = extractMobileDownloadLinks($);
+
+  return {
+    title,
+    cover,
+    fimage:        firstScreenshot || cover,
+    description,
+    info,
+    screenshots,
+    downloadLinks,
+    magnet:        null,
+    sourceUrl:     url,
+    platform:      "Mobile",
+  };
+}
+
+// ── AI description fallback ──────────────────────────────────────
+async function fetchAIDescription(title, platform = "PC") {
   try {
+    const platformHint = platform === "Mobile" ? "Android mobile game" : "PC game";
     const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model:     "claude-haiku-4-5-20251001",
       max_tokens: 500,
       messages: [{
-        role: "user",
-        content: `Write a short 3–5 sentence game description for "${title}". Focus on gameplay, genre, and what makes it interesting. Plain text only, no bullet points.`,
+        role:    "user",
+        content: `Write a short 3–5 sentence description for the ${platformHint} "${title}". Focus on gameplay, genre, and what makes it interesting. Plain text only, no bullet points.`,
       }],
     });
     return response.content.map(b => b.text || "").join(" ").trim();
@@ -70,14 +266,13 @@ async function fetchAIDescription(title) {
   }
 }
 
-// ── Steam description ────────────────────────────────────────────
+// ── Steam description (PC only) ──────────────────────────────────
 async function fetchSteamDescription(gameName) {
   try {
     const searchRes = await axios.get(
       `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`,
       { headers: JSON_HEADERS, timeout: 8000 }
     );
-
     const first = searchRes.data?.items?.[0];
     if (!first) return null;
 
@@ -85,62 +280,28 @@ async function fetchSteamDescription(gameName) {
       `https://store.steampowered.com/api/appdetails?appids=${first.id}&l=english`,
       { headers: JSON_HEADERS, timeout: 8000 }
     );
-
     const appData = detailRes.data?.[first.id]?.data;
-    if (!appData) return null;
-
-    // short_description is plain text, no HTML
-    return clean(appData.short_description) || null;
+    return appData ? clean(appData.short_description) || null : null;
   } catch (e) {
     console.error("Steam description error:", e.message);
     return null;
   }
 }
 
-// ── Parse FitGirl HTML ───────────────────────────────────────────
-function parseGame(html, url) {
-  const $ = cheerio.load(html);
+// ── Google Play description (Mobile) ────────────────────────────
+async function fetchPlayStoreDescription(gameName) {
+  try {
+    const searchUrl = `https://play.google.com/store/search?q=${encodeURIComponent(gameName)}&c=apps`;
+    const { data: html } = await axios.get(searchUrl, { headers: BROWSER_HEADERS, timeout: 10000 });
+    const $ = cheerio.load(html);
 
-  const title =
-    clean($("h1.entry-title").text()) ||
-    clean($("h1").first().text());
-
-  const cover =
-    $("img.wp-post-image").attr("src") ||
-    $("meta[property='og:image']").attr("content") ||
-    null;
-
-  const contentEl = $(".entry-content").first();
-  const description = extractDescription($, contentEl);
-
-  const info = {};
-  contentEl.find("li, p").each((_, el) => {
-    const txt = clean($(el).text());
-    ["Genres", "Languages", "Repack Size", "Original Size", "Version", "HDD Space", "Crack"].forEach(k => {
-      if (txt.toLowerCase().startsWith(k.toLowerCase() + ":") && !info[k]) {
-        info[k] = txt.slice(k.length + 1).trim();
-      }
-    });
-  });
-
-  const screenshots = [];
-  contentEl.find("img").each((_, el) => {
-    const src = $(el).attr("src");
-    if (src && !src.includes("logo") && src !== cover && screenshots.length < 8) {
-      screenshots.push(src);
-    }
-  });
-
-  return {
-    title,
-    cover,
-    description,
-    info,
-    screenshots,
-    downloadLinks: extractDownloadLinks($, contentEl),
-    magnet: extractMagnet(html),
-    sourceUrl: url,
-  };
+    // Extract short description from first result meta
+    const metaDesc = $("meta[name='description']").attr("content");
+    if (metaDesc && metaDesc.length > 30) return clean(metaDesc);
+    return null;
+  } catch (e) {
+    return null;
+  }
 }
 
 // ── CONTROLLER: SCRAPE ───────────────────────────────────────────
@@ -149,23 +310,21 @@ exports.ScrapeGame = async (req, res) => {
   if (!url) return res.status(400).json({ success: false, error: "url is required" });
 
   try {
-    const { data: html } = await axios.get(url, {
-      headers: BROWSER_HEADERS,
-      timeout: 15000,
-    });
+    const { data: html } = await axios.get(url, { headers: BROWSER_HEADERS, timeout: 15000 });
 
-    const data = parseGame(html, url);
+    const mobile = isMobileURL(url);
+    const data   = mobile ? parseMobileGame(html, url) : parsePCGame(html, url);
 
-    // Fallback description: Steam → AI
+    // Fallback description
     if (!data.description || data.description.length < 50) {
-      const steamDesc = await fetchSteamDescription(data.title);
-      if (steamDesc) {
-        data.description = steamDesc;
-        data.descriptionSource = "steam";
+      if (mobile) {
+        const playDesc = await fetchPlayStoreDescription(data.title);
+        if (playDesc) { data.description = playDesc; data.descriptionSource = "playstore"; }
+        else          { data.description = await fetchAIDescription(data.title, "Mobile"); data.descriptionSource = "ai"; }
       } else {
-        const aiDesc = await fetchAIDescription(data.title);
-        data.description = aiDesc;
-        data.descriptionSource = "ai";
+        const steamDesc = await fetchSteamDescription(data.title);
+        if (steamDesc) { data.description = steamDesc; data.descriptionSource = "steam"; }
+        else           { data.description = await fetchAIDescription(data.title, "PC");     data.descriptionSource = "ai"; }
       }
     } else {
       data.descriptionSource = "web";
@@ -178,25 +337,24 @@ exports.ScrapeGame = async (req, res) => {
 };
 
 // ── CONTROLLER: DESCSEARCH ───────────────────────────────────────
-// Called by frontend at POST /descsearch
 exports.DescSearch = async (req, res) => {
-  const { gameName } = req.body;
+  const { gameName, platform } = req.body;
   if (!gameName) return res.status(400).json({ success: false, error: "gameName is required" });
 
   const results = [];
+  const isMobile = platform === "Mobile";
 
   try {
-    // 1. Try Steam short description (plain text, reliable)
-    const steamDesc = await fetchSteamDescription(gameName);
-    if (steamDesc) {
-      results.push({ text: steamDesc, source: "steam" });
+    if (isMobile) {
+      const playDesc = await fetchPlayStoreDescription(gameName);
+      if (playDesc) results.push({ text: playDesc, source: "playstore" });
+    } else {
+      const steamDesc = await fetchSteamDescription(gameName);
+      if (steamDesc) results.push({ text: steamDesc, source: "steam" });
     }
 
-    // 2. Always add AI as an option
-    const aiDesc = await fetchAIDescription(gameName);
-    if (aiDesc) {
-      results.push({ text: aiDesc, source: "ai" });
-    }
+    const aiDesc = await fetchAIDescription(gameName, isMobile ? "Mobile" : "PC");
+    if (aiDesc) results.push({ text: aiDesc, source: "ai" });
 
     res.json({ success: true, results });
   } catch (e) {
@@ -206,48 +364,51 @@ exports.DescSearch = async (req, res) => {
 
 // ── CONTROLLER: IMAGESUGGEST ─────────────────────────────────────
 exports.ImageSuggest = async (req, res) => {
-  const { gameName } = req.body;
+  const { gameName, platform } = req.body;
   if (!gameName) return res.status(400).json({ success: false, error: "gameName is required" });
 
   const results = [];
   const headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    Accept:            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
   };
 
-  // ── Steam ─────────────────────────────────────────────────────────────────
-  try {
-    const steamRes = await axios.get(
-      `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`,
-      { timeout: 8000 }
-    );
-    const items = steamRes.data?.items || [];
-    for (const item of items.slice(0, 4)) {
-      const id = item.id;
-      let screenshots = [];
-      try {
-        const detailRes = await axios.get(
-          `https://store.steampowered.com/api/appdetails?appids=${id}&filters=screenshots`,
-          { timeout: 8000 }
-        );
-        const appData = detailRes.data?.[id]?.data;
-        screenshots = (appData?.screenshots || []).slice(0, 5).map(s => ({
-          title: `${item.name} — Screenshot`,
-          cover: s.path_full,
-          capsule: s.path_thumbnail,
-          hero: s.path_full,
-          source: "steam_screenshot",
-        }));
-      } catch (_) {}
-      results.push(
-        { title: item.name, cover: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_600x900.jpg`, capsule: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`, hero: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_hero.jpg`, source: "steam" },
-        ...screenshots
-      );
-    }
-  } catch (_) {}
+  const isMobile = platform === "Mobile";
 
-  // ── RAWG ──────────────────────────────────────────────────────────────────
+  if (!isMobile) {
+    // ── Steam (PC only) ──────────────────────────────────────────
+    try {
+      const steamRes = await axios.get(
+        `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`,
+        { timeout: 8000 }
+      );
+      const items = steamRes.data?.items || [];
+      for (const item of items.slice(0, 4)) {
+        const id = item.id;
+        let screenshots = [];
+        try {
+          const detailRes = await axios.get(
+            `https://store.steampowered.com/api/appdetails?appids=${id}&filters=screenshots`,
+            { timeout: 8000 }
+          );
+          const appData = detailRes.data?.[id]?.data;
+          screenshots = (appData?.screenshots || []).slice(0, 5).map(s => ({
+            title: `${item.name} — Screenshot`, cover: s.path_full,
+            capsule: s.path_thumbnail, hero: s.path_full, source: "steam_screenshot",
+          }));
+        } catch (_) {}
+        results.push(
+          { title: item.name, cover: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_600x900.jpg`,
+            capsule: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`,
+            hero: `https://cdn.akamai.steamstatic.com/steam/apps/${id}/library_hero.jpg`, source: "steam" },
+          ...screenshots
+        );
+      }
+    } catch (_) {}
+  }
+
+  // ── RAWG (works for both PC and Mobile) ──────────────────────
   try {
     const rawgRes = await axios.get(
       `https://api.rawg.io/api/games?search=${encodeURIComponent(gameName)}&page_size=5`,
@@ -260,16 +421,20 @@ exports.ImageSuggest = async (req, res) => {
         title: `${game.name} — Screenshot`, cover: ss.image, capsule: ss.image, hero: ss.image, source: "rawg_screenshot",
       }));
       results.push(
-        { title: game.name, cover: game.background_image, capsule: game.background_image, hero: game.background_image, source: "rawg" },
+        { title: game.name, cover: game.background_image, capsule: game.background_image,
+          hero: game.background_image, source: "rawg" },
         ...ssResults
       );
     }
   } catch (_) {}
 
-  // ── Bing fallback ─────────────────────────────────────────────────────────
+  // ── Bing fallback ─────────────────────────────────────────────
   if (results.length < 6) {
     try {
-      const bingUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(gameName + " game cover art high quality")}&qft=+filterui:imagesize-large&form=IRFLTR`;
+      const q = isMobile
+        ? `${gameName} android game icon cover art`
+        : `${gameName} game cover art high quality`;
+      const bingUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&qft=+filterui:imagesize-large&form=IRFLTR`;
       const { data: html } = await axios.get(bingUrl, { timeout: 10000, headers });
       const $ = cheerio.load(html);
       $("a.iusc").each((_, el) => {
@@ -277,14 +442,17 @@ exports.ImageSuggest = async (req, res) => {
           const m = $(el).attr("m");
           if (m) {
             const parsed = JSON.parse(m);
-            if (parsed.murl) results.push({ title: parsed.t || gameName, cover: parsed.murl, capsule: parsed.turl || parsed.murl, hero: parsed.murl, source: "bing" });
+            if (parsed.murl) results.push({
+              title: parsed.t || gameName, cover: parsed.murl,
+              capsule: parsed.turl || parsed.murl, hero: parsed.murl, source: "bing",
+            });
           }
         } catch (_) {}
       });
     } catch (_) {}
   }
 
-  const seen = new Set();
+  const seen   = new Set();
   const unique = results.filter(r => {
     if (!r.cover || seen.has(r.cover)) return false;
     seen.add(r.cover);
