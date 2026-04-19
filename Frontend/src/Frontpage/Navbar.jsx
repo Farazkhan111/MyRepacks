@@ -5,13 +5,13 @@ import url from './url'
 
 export default function Navbar() {
   const searchInputRef = useRef()
-  const dropdownRef = useRef()
+  const dropdownRef    = useRef()
 
-  const [games, setGames] = useState([])
-  const [search, setSearch] = useState('')
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [games,       setGames]      = useState([])
+  const [search,      setSearch]     = useState('')
+  const [searchOpen,  setSearchOpen] = useState(false)
+  const [scrolled,    setScrolled]   = useState(false)
+  const [mobileOpen,  setMobileOpen] = useState(false)
 
   useEffect(() => {
     axios.post(url + '/search').then((res) => setGames(res.data))
@@ -24,19 +24,13 @@ export default function Navbar() {
   }, [])
 
   useEffect(() => {
-    if (searchOpen) {
-      setTimeout(() => searchInputRef.current?.focus(), 100)
-    } else {
-      setSearch('')
-    }
+    if (searchOpen) setTimeout(() => searchInputRef.current?.focus(), 100)
+    else setSearch('')
   }, [searchOpen])
 
-  // Close search on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setSearchOpen(false)
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setSearchOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -51,22 +45,24 @@ export default function Navbar() {
     )
   })
 
+  const navLinks = [
+    { to: '/',                label: 'Home' },
+    { to: '/collection',      label: 'PC Games',     state: { platform: 'PC' } },
+    { to: '/collection',      label: 'Mobile Games',  state: { platform: 'Mobile' }, key: 'mobile' },
+    { to: '/about',           label: 'About' },
+  ]
+
   return (
     <>
       <nav className={`navbar-root ${scrolled ? 'navbar-scrolled' : ''}`}>
         <div className="navbar-container">
 
-          {/* LEFT — nav links (desktop) / hamburger (mobile) */}
+          {/* LEFT */}
           <div className="navbar-left">
-            {/* Desktop nav links */}
             <ul className="nav-links-desktop">
-              {[
-                { to: '/', label: 'Home' },
-                { to: '/collection', label: 'Games' },
-                { to: '/about', label: 'About' },
-              ].map(({ to, label }) => (
-                <li key={label}>
-                  <Link to={to} className="nav-link-item">
+              {navLinks.map(({ to, label, state, key }) => (
+                <li key={key || label}>
+                  <Link to={to} state={state} className="nav-link-item">
                     <span>{label}</span>
                     <span className="nav-link-underline" />
                   </Link>
@@ -74,7 +70,6 @@ export default function Navbar() {
               ))}
             </ul>
 
-            {/* Mobile hamburger */}
             <button
               className={`hamburger-btn ${mobileOpen ? 'open' : ''}`}
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -86,10 +81,11 @@ export default function Navbar() {
             </button>
           </div>
 
-          {/* CENTER — brand */}
+          {/* CENTER */}
           <div className="navbar-brand-wrap">
             <Link to="/" className="navbar-brand">
-              <span className="brand-accent">My</span> <span className='text-light'>RePacks</span>
+              <span className="brand-accent">My</span>{' '}
+              <span className="text-light">RePacks</span>
             </Link>
           </div>
 
@@ -112,10 +108,10 @@ export default function Navbar() {
               <span className="search-btn-label">Search</span>
             </button>
 
-            {/* Search dropdown */}
             <div className={`search-dropdown ${searchOpen ? 'search-dropdown-open' : ''}`}>
               <div className="search-input-wrap">
-                <svg className="search-icon-inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <svg className="search-icon-inline" width="14" height="14" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
                 <input
@@ -141,9 +137,15 @@ export default function Navbar() {
                     <img src={game.image} alt={game.name} className="search-result-img" />
                     <div className="search-result-info">
                       <span className="search-result-name">{game.name}</span>
-                      {game.category && <span className="search-result-cat">{game.category}</span>}
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        {game.category && <span className="search-result-cat">{game.category}</span>}
+                        {game.platform === 'Mobile' && (
+                          <span className="search-result-platform">📱</span>
+                        )}
+                      </div>
                     </div>
-                    <svg className="search-result-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <svg className="search-result-arrow" width="14" height="14" viewBox="0 0 24 24"
+                      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                       <polyline points="9 18 15 12 9 6" />
                     </svg>
                   </Link>
@@ -157,13 +159,15 @@ export default function Navbar() {
         <div className={`mobile-drawer ${mobileOpen ? 'mobile-drawer-open' : ''}`}>
           <div className="mobile-drawer-inner">
             {[
-              { to: '/', label: 'Home' },
-              { to: '/collection', label: 'Games' },
-              { to: '/about', label: 'About' },
-            ].map(({ to, label }) => (
+              { to: '/',           label: '🏠 Home' },
+              { to: '/collection', label: '💻 PC Games',    state: { platform: 'PC' } },
+              { to: '/collection', label: '📱 Mobile Games', state: { platform: 'Mobile' }, key: 'mob' },
+              { to: '/about',      label: 'ℹ️ About' },
+            ].map(({ to, label, state, key }) => (
               <Link
-                key={label}
+                key={key || label}
                 to={to}
+                state={state}
                 className="mobile-nav-link"
                 onClick={() => setMobileOpen(false)}
               >
