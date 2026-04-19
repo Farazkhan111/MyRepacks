@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import url from './url'
 
 const AVATAR_COLORS = [
@@ -17,7 +17,7 @@ export default function Gamepage() {
 
   const loc = useLocation()
   const idd = loc.state
-  const nav = useNavigate()
+  // const nav = useNavigate()
 
   useEffect(() => {
     axios.post(url + '/gamepage',  { idd }).then((res) => setGame(res.data))
