@@ -392,13 +392,12 @@ th, td {
  @media (max-width: 992px) {
   .main-content {
     margin-left: 0;
-    margin-top: 0; /* remove margin-top */
+    margin-top: 60px;
     padding: 20px;
-
     display: flex;
     justify-content: center;
-    align-items: center; /* center vertically */
-    min-height: calc(100vh - 60px); /* account for topbar height */
+    align-items: center;
+    min-height: calc(100vh - 60px);
     flex-direction: column;
   }
 }
@@ -556,12 +555,12 @@ textarea {
 @media (max-width: 992px) {
   .main-content {
     margin-left: 0;
-    margin-top: 0;
+    margin-top: 0px;
     padding: 20px;
     flex-direction: column;
-    justify-content: flex-start;
     align-items: center;
-    min-height: calc(100vh - 60px); /* topbar height */
+    justify-content: center;
+    min-height: 100vh;
   }
 
   .form-container {
