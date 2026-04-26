@@ -1,16 +1,151 @@
 import axios from 'axios'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import url from './url'
 
 const PC_CATEGORIES     = ['All', 'Roleplay', 'Simulation', 'Sports', 'Action', 'Strategy', 'Adventure']
-const MOBILE_CATEGORIES = ['All', 'Action', 'Casual', 'Puzzle', 'Racing', 'RPG', 'Sports', 'Strategy','Simulation']
+const MOBILE_CATEGORIES = ['All', 'Action', 'Casual', 'Puzzle', 'Racing', 'RPG', 'Sports', 'Strategy']
 
+/* ── Extract YouTube video ID from any YT URL format ── */
+function getYouTubeId(ytUrl) {
+  if (!ytUrl) return null
+  const patterns = [
+    /youtu\.be\/([^?&]+)/,
+    /youtube\.com\/watch\?v=([^?&]+)/,
+    /youtube\.com\/embed\/([^?&]+)/,
+    /youtube\.com\/shorts\/([^?&]+)/,
+  ]
+  for (const re of patterns) {
+    const m = ytUrl.match(re)
+    if (m) return m[1]
+  }
+  return null
+}
+
+/* ── Individual card with YouTube preview on hover ── */
+function GameCard({ game, index, onClick }) {
+  const iframeRef  = useRef(null)
+  const hoverTimer = useRef(null)
+  const [hovered,     setHovered]     = useState(false)
+  const [iframeReady, setIframeReady] = useState(false)
+  const videoId = getYouTubeId(game.video)
+
+  /* YT embed: autoplay, muted, looped, no controls/branding */
+  const ytSrc = videoId
+    ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&enablejsapi=1`
+    : null
+
+  function handleMouseEnter() {
+    hoverTimer.current = setTimeout(() => setHovered(true), 150)
+  }
+
+  function handleMouseLeave() {
+    clearTimeout(hoverTimer.current)
+    setHovered(false)
+    setIframeReady(false)
+    // Pause playback via postMessage before resetting src
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*'
+    )
+  }
+
+  // Swap iframe src on hover state change
+  useEffect(() => {
+    if (!iframeRef.current) return
+    iframeRef.current.src = hovered && ytSrc ? ytSrc : ''
+  }, [hovered])
+
+  return (
+    <div
+      className="col-card"
+      onClick={onClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{ animationDelay: `${(index % 12) * 0.04}s` }}
+    >
+      <div className="col-card-img-wrap">
+
+        {/* Static thumbnail — always present, crossfades out when iframe ready */}
+        <img
+          src={game.fimage}
+          alt={game.name}
+          className="col-card-img"
+          style={{
+            opacity: hovered && videoId && iframeReady ? 0 : 1,
+            transition: 'opacity 0.4s ease',
+          }}
+        />
+
+        {/* YouTube iframe — always in DOM when videoId exists so ref is stable */}
+        {videoId && (
+          <iframe
+            ref={iframeRef}
+            src=""
+            className="col-card-yt-iframe"
+            allow="autoplay; encrypted-media"
+            allowFullScreen={false}
+            title={game.name}
+            onLoad={() => {
+              // Give YT player ~800 ms to start before crossfading
+              if (hovered) setTimeout(() => setIframeReady(true), 800)
+            }}
+            style={{
+              opacity: iframeReady ? 1 : 0,
+              transition: 'opacity 0.4s ease',
+              pointerEvents: 'none', // clicks pass through to the card
+            }}
+          />
+        )}
+
+        <div className="col-card-overlay" />
+
+        {game.category && <span className="col-card-cat">{game.category}</span>}
+
+        {/* Spinner while iframe buffers */}
+        {hovered && videoId && !iframeReady && (
+          <div className="col-card-play" style={{ opacity: 1 }}>
+            <div className="col-card-spinner" />
+          </div>
+        )}
+
+        {/* Default play icon for cards with no video */}
+        {!videoId && (
+          <div className="col-card-play">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+          </div>
+        )}
+
+        {/* Live PREVIEW badge */}
+        {hovered && videoId && iframeReady && (
+          <div className="col-card-video-badge">
+            <span className="col-card-video-dot" />
+            PREVIEW
+          </div>
+        )}
+      </div>
+
+      <div className="col-card-info">
+        <h4 className="col-card-name">{game.name}</h4>
+        <div className="col-card-footer">
+          <span className="col-card-free">Free Download</span>
+          <svg className="col-card-arrow" width="14" height="14" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Main Collection page ── */
 export default function Collection() {
-  const [allgames,  setGames]   = useState([])
-  const [platform,  setPlatform]= useState('PC')      // 'PC' | 'Mobile'
-  const [category,  setCategory]= useState('All')
-  const [loading,   setLoading] = useState(true)
+  const [allgames,  setGames]    = useState([])
+  const [platform,  setPlatform] = useState('PC')
+  const [category,  setCategory] = useState('All')
+  const [loading,   setLoading]  = useState(true)
   const nav = useNavigate()
 
   useEffect(() => {
@@ -20,7 +155,6 @@ export default function Collection() {
     })
   }, [])
 
-  // Reset category when switching platform
   function switchPlatform(p) {
     setPlatform(p)
     setCategory('All')
@@ -34,15 +168,13 @@ export default function Collection() {
     category === 'All' || g.category === category
   )
 
-  const cats = platform === 'Mobile' ? MOBILE_CATEGORIES : PC_CATEGORIES
-
+  const cats        = platform === 'Mobile' ? MOBILE_CATEGORIES : PC_CATEGORIES
   const pcCount     = allgames.filter(g => !g.platform || g.platform === 'PC').length
   const mobileCount = allgames.filter(g => g.platform === 'Mobile').length
 
   return (
     <div className="collection-page">
 
-      {/* Page header */}
       <div className="collection-header">
         <div className="collection-header-bg" />
         <div className="collection-header-content">
@@ -59,7 +191,6 @@ export default function Collection() {
         </div>
       </div>
 
-      {/* ── Platform toggle ── */}
       <div className="platform-toggle-bar">
         <button
           className={`platform-toggle-btn ${platform === 'PC' ? 'active' : ''}`}
@@ -77,7 +208,6 @@ export default function Collection() {
         </button>
       </div>
 
-      {/* Category filter bar */}
       <div className="collection-filter-bar">
         <div className="collection-filter-inner">
           {cats.map((cat) => (
@@ -93,7 +223,6 @@ export default function Collection() {
         </div>
       </div>
 
-      {/* Games grid */}
       <div className="collection-body">
         {loading ? (
           <div className="collection-loading">
@@ -108,39 +237,12 @@ export default function Collection() {
         ) : (
           <div className="collection-grid">
             {filtered.map((game, index) => (
-              <div
+              <GameCard
                 key={game._id || index}
-                className="col-card"
+                game={game}
+                index={index}
                 onClick={() => nav('/gamepage', { state: game._id })}
-                style={{ animationDelay: `${(index % 12) * 0.04}s` }}
-              >
-                <div className="col-card-img-wrap">
-                  <img src={game.fimage} alt={game.name} className="col-card-img" />
-                  <div className="col-card-overlay" />
-
-                  {/* Platform badge
-                  <span className={`col-card-platform ${game.platform === 'Mobile' ? 'mobile' : 'pc'}`}>
-                    {game.platform === 'Mobile' ? '📱' : '💻'}
-                  </span> */}
-
-                  {game.category && <span className="col-card-cat">{game.category}</span>}
-                  <div className="col-card-play">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="5 3 19 12 5 21 5 3" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="col-card-info">
-                  <h4 className="col-card-name">{game.name}</h4>
-                  <div className="col-card-footer">
-                    <span className="col-card-free">Free Download</span>
-                    <svg className="col-card-arrow" width="14" height="14" viewBox="0 0 24 24"
-                      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
+              />
             ))}
           </div>
         )}

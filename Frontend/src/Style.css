@@ -1810,6 +1810,78 @@ a {
     gap: 10px;
   }
 }
+
+/* ============================================================
+   COLLECTION — YouTube hover preview  (append to Style.css)
+   ============================================================ */
+
+/* iframe fills the card image area exactly */
+.col-card-yt-iframe {
+  position: absolute;
+  /* Oversized to hide YT letterbox bars / logo watermark */
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  border: none;
+  pointer-events: none;   /* clicks pass through to card onClick */
+}
+
+/* "PREVIEW" live badge — bottom right */
+.col-card-video-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Space Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 4px 8px;
+  border-radius: 4px;
+  backdrop-filter: blur(6px);
+  z-index: 10;
+  animation: badgeFadeIn 0.3s ease both;
+}
+
+@keyframes badgeFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Pulsing red dot */
+.col-card-video-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ff4444;
+  flex-shrink: 0;
+  animation: videoDotPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes videoDotPulse {
+  0%, 100% { opacity: 1;   transform: scale(1);   }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* Buffering spinner */
+.col-card-spinner {
+  width: 26px;
+  height: 26px;
+  border: 2.5px solid rgba(255, 176, 0, 0.2);
+  border-top-color: #ffb000;
+  border-radius: 50%;
+  animation: spinnerRotate 0.7s linear infinite;
+}
+
+@keyframes spinnerRotate {
+  to { transform: rotate(360deg); }
+}
 /* ============================================================
    GAME PAGE
    ============================================================ */

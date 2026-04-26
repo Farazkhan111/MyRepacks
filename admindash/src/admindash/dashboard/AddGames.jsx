@@ -13,7 +13,7 @@ export default function AddGames() {
   const [gfimage,      setFimage]    = useState("");
   const [gdes,         setDes]       = useState("");
   const [gcat,         setCat]       = useState("");
-  const [gplatform,    setPlatform]  = useState("PC");   // ← NEW
+  const [gplatform,    setPlatform]  = useState("PC");
   const [gvideo,       setVideo]     = useState("");
   const [othername,    setOthername] = useState([]);
   const [gtrend,       setTrend]     = useState("");
@@ -37,6 +37,7 @@ export default function AddGames() {
         if (d.gcat)      setCat(d.gcat);
         if (d.gplatform) setPlatform(d.gplatform);
         if (d.glink)     setLink(d.glink);
+        if (d.gvideo)    setVideo(d.gvideo);   // ← trailer URL from scraper
         if (Array.isArray(d.othername)) setOthername(d.othername);
         setAutoFilled(true);
         sessionStorage.removeItem("scraped_game");
@@ -59,6 +60,24 @@ export default function AddGames() {
       }
     }
   };
+
+  // Extract YouTube video ID for preview
+  function getYouTubeId(ytUrl) {
+    if (!ytUrl) return null;
+    const patterns = [
+      /youtu\.be\/([^?&]+)/,
+      /youtube\.com\/watch\?v=([^?&]+)/,
+      /youtube\.com\/embed\/([^?&]+)/,
+      /youtube\.com\/shorts\/([^?&]+)/,
+    ];
+    for (const re of patterns) {
+      const m = ytUrl.match(re);
+      if (m) return m[1];
+    }
+    return null;
+  }
+
+  const videoId = getYouTubeId(gvideo);
 
   return (
     <>
@@ -92,7 +111,32 @@ export default function AddGames() {
               {gfimage && <img src={gfimage} alt="hero" className="img-preview img-preview-landscape" onError={e => e.target.style.display="none"} />}
             </div>
 
-            <input placeholder="Game Video URL" value={gvideo} onChange={e => setVideo(e.target.value)} />
+            {/* ── Video URL + live preview ── */}
+            <div className="input-with-preview">
+              <input
+                placeholder="YouTube Trailer URL (e.g. https://youtube.com/watch?v=...)"
+                value={gvideo}
+                onChange={e => setVideo(e.target.value)}
+              />
+              {videoId && (
+                <div className="video-preview-wrap">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${videoId}`}
+                    title="Trailer preview"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="video-preview-iframe"
+                  />
+                  <button
+                    type="button"
+                    className="video-preview-clear"
+                    onClick={() => setVideo("")}
+                  >
+                    ✕ Remove
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Aliases */}
             <div className="addgames-alias-box">
@@ -112,13 +156,13 @@ export default function AddGames() {
 
             <textarea placeholder="Game Description" value={gdes} onChange={e => setDes(e.target.value)} />
 
-            {/* ── Platform selector ── */}
+            {/* Platform selector */}
             <select className="bg-dark" value={gplatform} onChange={e => setPlatform(e.target.value)}>
               <option value="PC">💻 PC</option>
               <option value="Mobile">📱 Mobile</option>
             </select>
 
-            {/* ── Category selector ── */}
+            {/* Category selector */}
             <select className="bg-dark" value={gcat} onChange={e => setCat(e.target.value)}>
               <option value="">Select Category</option>
               {gplatform === "PC" ? (
