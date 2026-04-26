@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import url from './url'
 
 const PC_CATEGORIES     = ['All', 'Roleplay', 'Simulation', 'Sports', 'Action', 'Strategy', 'Adventure']
-const MOBILE_CATEGORIES = ['All', 'Action', 'Casual', 'Puzzle', 'Racing', 'RPG', 'Sports', 'Strategy']
+const MOBILE_CATEGORIES = ['All', 'Action', 'Casual', 'Puzzle', 'Racing', 'RPG', 'Sports', 'Strategy','Simulation']
 
 export default function Collection() {
   const [allgames,  setGames]   = useState([])
