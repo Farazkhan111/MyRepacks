@@ -1253,6 +1253,60 @@ a {
   }
 }
 /* ============================================================
+   LATEST — platform-tab overrides  (append to Style.css)
+   ============================================================ */
+
+/* Scoot the toggle closer to the header — no extra top padding */
+.latest-platform-bar {
+  padding-top: 12px;
+  padding-bottom: 4px;
+}
+
+/* PC active state — amber accent (matches the rest of the site) */
+.latest-item--pc .latest-item-num,
+.platform-toggle-btn.active .platform-count {
+  color: rgba(255, 176, 0, 0.85);
+}
+
+/* Mobile active state — cyan/teal accent */
+.platform-toggle-btn.active[data-platform="mobile"] {
+  border-color: rgba(80, 220, 180, 0.5);
+  background: rgba(80, 220, 180, 0.07);
+  color: rgba(80, 220, 180, 0.9);
+}
+
+/* Mobile list-item hover tint */
+.latest-item--mobile:hover {
+  background: rgba(80, 220, 180, 0.05);
+}
+
+.latest-item--mobile:hover .latest-item-num {
+  color: rgba(80, 220, 180, 0.75);
+}
+
+.latest-item--mobile:hover .latest-item-arrow {
+  color: rgba(80, 220, 180, 0.9);
+}
+
+.latest-item--mobile .latest-item-cat {
+  color: rgba(80, 220, 180, 0.55);
+}
+
+/* Empty state */
+.latest-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.latest-empty span {
+  font-size: 2rem;
+}
+/* ============================================================
    SPOTLIGHT SECTION (Newgame)
    ============================================================ */
 
