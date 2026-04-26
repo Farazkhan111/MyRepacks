@@ -5,6 +5,7 @@ import url from './url'
 
 export default function Latest() {
   const [lgame, setData] = useState([])
+  const [platform, setPlatform] = useState('PC')   // 'PC' | 'Mobile'
   const nav = useNavigate()
 
   useEffect(() => {
@@ -15,11 +16,20 @@ export default function Latest() {
     nav('/gamepage', { state: id })
   }
 
-  const games = lgame.slice(0, 12)
+  // Same platform logic as Collection.jsx
+  const filtered = lgame
+    .filter((g) =>
+      platform === 'Mobile'
+        ? g.platform === 'Mobile'
+        : !g.platform || g.platform === 'PC'
+    )
+    .slice(0, 12)
+
+  const pcCount     = lgame.filter((g) => !g.platform || g.platform === 'PC').length
+  const mobileCount = lgame.filter((g) => g.platform === 'Mobile').length
 
   return (
     <section className="latest-section">
-      {/* Background accent */}
       <div className="latest-bg-accent" />
 
       <div className="latest-inner">
@@ -35,12 +45,37 @@ export default function Latest() {
           <p className="section-subtitle">Fresh repacks added to the library</p>
         </div>
 
-        {/* List layout */}
+        {/* Platform toggle — reuses Collection's existing CSS classes */}
+        <div className="platform-toggle-bar latest-platform-bar">
+          <button
+            className={`platform-toggle-btn ${platform === 'PC' ? 'active' : ''}`}
+            onClick={() => setPlatform('PC')}
+          >
+            💻 PC Games
+            <span className="platform-count">{pcCount}</span>
+          </button>
+          <button
+            className={`platform-toggle-btn ${platform === 'Mobile' ? 'active' : ''}`}
+            onClick={() => setPlatform('Mobile')}
+          >
+            📱 Mobile Games
+            <span className="platform-count">{mobileCount}</span>
+          </button>
+        </div>
+
+        {/* List */}
         <div className="latest-list">
-          {games.map((game, index) => (
+          {filtered.length === 0 && (
+            <div className="latest-empty">
+              <span>{platform === 'Mobile' ? '📱' : '💻'}</span>
+              <p>No {platform} games found yet.</p>
+            </div>
+          )}
+
+          {filtered.map((game, index) => (
             <div
               key={game._id || index}
-              className="latest-item"
+              className={`latest-item latest-item--${platform.toLowerCase()}`}
               onClick={() => showgame(game._id)}
               style={{ animationDelay: `${index * 0.04}s` }}
             >
@@ -62,7 +97,7 @@ export default function Latest() {
                 )}
               </div>
 
-              {/* Tags */}
+              {/* Right side */}
               <div className="latest-item-right">
                 <span className="latest-badge-new">New</span>
                 <svg

@@ -134,6 +134,7 @@ export default function AddGames() {
                 <>
                   <option>Action</option>
                   <option>Casual</option>
+                  <option>Simulation</option>
                   <option>Puzzle</option>
                   <option>Racing</option>
                   <option>RPG</option>
