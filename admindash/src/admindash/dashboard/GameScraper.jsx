@@ -29,6 +29,22 @@ const INFO_MAP = {
 
 const SOURCE_BADGE = { steam: "🎮 Steam", playstore: "▶ Play Store", ai: "🤖 AI", web: "🌐 Web" };
 
+/** Extract YouTube video ID from any YT URL */
+function getYouTubeId(ytUrl) {
+  if (!ytUrl) return null;
+  const patterns = [
+    /youtu\.be\/([^?&]+)/,
+    /youtube\.com\/watch\?v=([^?&]+)/,
+    /youtube\.com\/embed\/([^?&]+)/,
+    /youtube\.com\/shorts\/([^?&]+)/,
+  ];
+  for (const re of patterns) {
+    const m = ytUrl.match(re);
+    if (m) return m[1];
+  }
+  return null;
+}
+
 function SelectBtn({ url, type, selectedImages, setSelectedImages }) {
   const isSelected = selectedImages[type] === url;
   return (
@@ -46,23 +62,30 @@ function SelectBtn({ url, type, selectedImages, setSelectedImages }) {
 export default function GameScraper() {
   const nav = useNavigate();
 
-  const [inputUrl,       setInputUrl]      = useState("");
-  const [loading,        setLoading]       = useState(false);
-  const [error,          setError]         = useState(null);
-  const [game,           setGame]          = useState(null);
-  const [tab,            setTab]           = useState("info");
-  const [detectedPlat,   setDetectedPlat]  = useState("PC");
+  const [inputUrl,        setInputUrl]       = useState("");
+  const [loading,         setLoading]        = useState(false);
+  const [error,           setError]          = useState(null);
+  const [game,            setGame]           = useState(null);
+  const [tab,             setTab]            = useState("info");
+  const [detectedPlat,    setDetectedPlat]   = useState("PC");
 
-  const [imgQuery,       setImgQuery]      = useState("");
-  const [imgLoading,     setImgLoading]    = useState(false);
-  const [imgResults,     setImgResults]    = useState([]);
-  const [selectedImages, setSelectedImages]= useState({ cover: "", hero: "" });
+  const [imgQuery,        setImgQuery]       = useState("");
+  const [imgLoading,      setImgLoading]     = useState(false);
+  const [imgResults,      setImgResults]     = useState([]);
+  const [selectedImages,  setSelectedImages] = useState({ cover: "", hero: "" });
 
-  const [descQuery,      setDescQuery]     = useState("");
-  const [descLoading,    setDescLoading]   = useState(false);
-  const [descResults,    setDescResults]   = useState([]);
-  const [selectedDesc,   setSelectedDesc]  = useState("");
-  const [copied,         setCopied]        = useState(false);
+  const [descQuery,       setDescQuery]      = useState("");
+  const [descLoading,     setDescLoading]    = useState(false);
+  const [descResults,     setDescResults]    = useState([]);
+  const [selectedDesc,    setSelectedDesc]   = useState("");
+  const [copied,          setCopied]         = useState(false);
+
+  // ── Trailer state ─────────────────────────────────────────────
+  const [trailerQuery,    setTrailerQuery]   = useState("");
+  const [trailerLoading,  setTrailerLoading] = useState(false);
+  const [trailerUrl,      setTrailerUrl]     = useState("");   // full YT URL
+  const [trailerError,    setTrailerError]   = useState("");
+  const [manualTrailer,   setManualTrailer]  = useState("");   // manual paste input
 
   // ── Scrape ───────────────────────────────────────────────────
   async function handleScrape() {
@@ -72,6 +95,7 @@ export default function GameScraper() {
     setLoading(true); setError(null); setGame(null);
     setImgResults([]); setSelectedImages({ cover: "", hero: "" });
     setDescResults([]); setSelectedDesc("");
+    setTrailerUrl(""); setTrailerError(""); setManualTrailer("");
 
     try {
       const res  = await fetch(`${API}/scrape`, {
@@ -84,11 +108,51 @@ export default function GameScraper() {
       setGame(json.data);
       setImgQuery(json.data.title || "");
       setDescQuery(json.data.title || "");
+      setTrailerQuery(json.data.title || "");
       if (json.data.description)
         setDescResults([{ text: json.data.description, source: json.data.descriptionSource || "web" }]);
+
+      // Auto-fill trailer if scraper returned one
+      if (json.data.trailer) setTrailerUrl(json.data.trailer);
+
       setTab("info");
     } catch (e) { setError(e.message); }
     finally     { setLoading(false); }
+  }
+
+  // ── Trailer search ───────────────────────────────────────────
+  async function handleTrailerSearch() {
+    if (!trailerQuery.trim()) return;
+    setTrailerLoading(true); setTrailerError(""); setTrailerUrl("");
+    try {
+      const res  = await fetch(`${API}/trailersearch`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameName: trailerQuery.trim(), platform: detectedPlat }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Search failed");
+      if (json.trailer) {
+        setTrailerUrl(json.trailer);
+      } else {
+        setTrailerError("No trailer found. Try a different search term or paste a URL manually.");
+      }
+    } catch (e) {
+      setTrailerError(e.message);
+    } finally {
+      setTrailerLoading(false);
+    }
+  }
+
+  // ── Apply manual trailer URL ─────────────────────────────────
+  function applyManualTrailer() {
+    const id = getYouTubeId(manualTrailer.trim());
+    if (id) {
+      setTrailerUrl(`https://www.youtube.com/watch?v=${id}`);
+      setManualTrailer("");
+      setTrailerError("");
+    } else {
+      setTrailerError("Invalid YouTube URL. Accepted: youtu.be/xxx, youtube.com/watch?v=xxx, /shorts/xxx");
+    }
   }
 
   // ── Description search ───────────────────────────────────────
@@ -136,6 +200,7 @@ export default function GameScraper() {
       gplatform: game.platform || detectedPlat,
       gcat:      inferCategory(game.info?.Genres || game.info?.Category || ""),
       glink:     game.downloadLinks?.[0]?.url || "",
+      gvideo:    trailerUrl || "",   // ← YouTube trailer URL
       othername: [],
     };
     sessionStorage.setItem("scraped_game", JSON.stringify(payload));
@@ -158,6 +223,7 @@ export default function GameScraper() {
 
   const platformColor = detectedPlat === "Mobile" ? "#a78bfa" : "#60a5fa";
   const platformIcon  = detectedPlat === "Mobile" ? "📱" : "💻";
+  const trailerVideoId = getYouTubeId(trailerUrl);
 
   return (
     <>
@@ -225,7 +291,6 @@ export default function GameScraper() {
               <div className="scraper-game-info">
                 <h3 className="scraper-game-name">{game.title}</h3>
 
-                {/* Platform badge */}
                 <span className={`platform-badge ${game.platform === "Mobile" ? "badge-mobile" : "badge-pc"}`}
                   style={{ marginBottom: 6, display: "inline-block" }}>
                   {game.platform === "Mobile" ? "📱 Mobile Game" : "💻 PC Game"}
@@ -243,6 +308,9 @@ export default function GameScraper() {
                       : <span className="chip chip-amber">⚠️ No description</span>}
                   {(selectedImages.cover || selectedImages.hero) && <span className="chip chip-green">🖼 Image selected</span>}
                   {game.downloadLinks?.length > 0 && <span className="chip chip-green">⬇ {game.downloadLinks.length} links</span>}
+                  {trailerUrl
+                    ? <span className="chip chip-green">▶ Trailer ready</span>
+                    : <span className="chip chip-amber">⚠️ No trailer</span>}
                 </div>
 
                 <button className={`scraper-use-btn ${copied ? "copied" : ""}`} onClick={sendToAddGame}>
@@ -256,6 +324,7 @@ export default function GameScraper() {
               {[
                 { id: "info",        label: "📋 Info" },
                 { id: "desc",        label: `📝 Description${selectedDesc ? " ✓" : ""}` },
+                { id: "trailer",     label: `▶ Trailer${trailerUrl ? " ✓" : ""}` },
                 { id: "downloads",   label: `⬇ Downloads (${game.downloadLinks?.length || 0})` },
                 { id: "screenshots", label: `🖼 Screenshots (${game.screenshots?.length || 0})` },
                 { id: "images",      label: "🔍 Image Search" },
@@ -267,7 +336,7 @@ export default function GameScraper() {
 
             <div className="scraper-tab-body">
 
-              {/* Info */}
+              {/* ── Info ── */}
               {tab === "info" && (
                 <div className="info-grid">
                   {Object.entries(game.info || {}).length > 0
@@ -281,7 +350,7 @@ export default function GameScraper() {
                 </div>
               )}
 
-              {/* Description */}
+              {/* ── Description ── */}
               {tab === "desc" && (
                 <div className="img-search-panel">
                   <div className="img-search-row">
@@ -329,7 +398,98 @@ export default function GameScraper() {
                 </div>
               )}
 
-              {/* Downloads */}
+              {/* ── Trailer ── */}
+              {tab === "trailer" && (
+                <div className="img-search-panel">
+
+                  {/* Search row */}
+                  <div className="img-search-row">
+                    <input
+                      className="img-search-input"
+                      type="text"
+                      placeholder="Game name to search YouTube trailer..."
+                      value={trailerQuery}
+                      onChange={e => setTrailerQuery(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleTrailerSearch()}
+                    />
+                    <button
+                      className={`img-search-btn ${trailerLoading ? "loading" : ""}`}
+                      onClick={handleTrailerSearch}
+                      disabled={trailerLoading || !trailerQuery.trim()}
+                    >
+                      {trailerLoading ? <span className="spin" /> : "🔍 Search"}
+                    </button>
+                  </div>
+
+                  {trailerError && (
+                    <div className="scraper-error" style={{ marginTop: 10 }}>⚠️ {trailerError}</div>
+                  )}
+
+                  {/* Found trailer preview */}
+                  {trailerVideoId && (
+                    <div className="trailer-preview-wrap">
+                      <div className="trailer-preview-label">
+                        <span className="chip chip-green">▶ Trailer Selected</span>
+                        <a
+                          href={trailerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="scraper-source-link"
+                          style={{ fontSize: 12, marginLeft: 10 }}
+                        >
+                          {trailerUrl}
+                        </a>
+                      </div>
+                      <div className="trailer-iframe-wrap">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${trailerVideoId}`}
+                          title="Game Trailer"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="trailer-iframe"
+                        />
+                      </div>
+                      <button
+                        className="img-deselect"
+                        style={{ marginTop: 10 }}
+                        onClick={() => { setTrailerUrl(""); }}
+                      >
+                        ✕ Remove Trailer
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Manual paste */}
+                  <div className="trailer-manual-wrap">
+                    <p className="trailer-manual-label">Or paste a YouTube URL manually:</p>
+                    <div className="img-search-row">
+                      <input
+                        className="img-search-input"
+                        type="url"
+                        placeholder="https://www.youtube.com/watch?v=...  or  https://youtu.be/..."
+                        value={manualTrailer}
+                        onChange={e => setManualTrailer(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && applyManualTrailer()}
+                      />
+                      <button
+                        className="img-search-btn"
+                        onClick={applyManualTrailer}
+                        disabled={!manualTrailer.trim()}
+                      >
+                        ✓ Apply
+                      </button>
+                    </div>
+                  </div>
+
+                  {!trailerVideoId && !trailerLoading && !trailerError && (
+                    <p className="scraper-empty" style={{ marginTop: 20 }}>
+                      Click Search to auto-find a trailer, or paste a YouTube URL above.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ── Downloads ── */}
               {tab === "downloads" && (
                 <div className="dl-list">
                   {game.magnet && (
@@ -350,7 +510,7 @@ export default function GameScraper() {
                 </div>
               )}
 
-              {/* Screenshots */}
+              {/* ── Screenshots ── */}
               {tab === "screenshots" && (
                 <div className="ss-grid">
                   {game.screenshots?.length > 0
@@ -364,7 +524,7 @@ export default function GameScraper() {
                 </div>
               )}
 
-              {/* Image Search */}
+              {/* ── Image Search ── */}
               {tab === "images" && (
                 <div className="img-search-panel">
                   <div className="img-search-row">
@@ -427,6 +587,7 @@ export default function GameScraper() {
                   ) : !imgLoading && <p className="scraper-empty">Search for a game to see images.</p>}
                 </div>
               )}
+
             </div>
           </div>
         )}
