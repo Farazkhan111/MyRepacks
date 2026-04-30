@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 
 export default function Sidebar() {
-  const nav = useNavigate();
+  const nav      = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
 
@@ -12,32 +12,31 @@ export default function Sidebar() {
   }
 
   const menu = [
-    { path: "/dashboard", name: "Home", icon: "🏠" },
-    { path: "/add", name: "Add Game", icon: "➕" },
-    { path: "/show", name: "Show Game", icon: "🎮" },
-    {path: "/scraper", name: "scraper", icon: "➕"}
+    { path: "/dashboard", name: "Home",         icon: "🏠" },
+    { path: "/add",       name: "Add Game",      icon: "➕" },
+    { path: "/show",      name: "Show Game",     icon: "🎮" },
+    { path: "/scraper",   name: "Scraper",       icon: "🔗" },
+    { path: "/import",    name: "Import Games",  icon: "📥" },  // ← NEW
   ];
 
   return (
     <>
-      {/* 🔷 MOBILE TOPBAR */}
+      {/* MOBILE TOPBAR */}
       <div className="topbar">
         <span>🎮 My Games</span>
         <button onClick={() => setOpen(true)}>☰</button>
       </div>
 
-      {/* 🔷 OVERLAY */}
+      {/* OVERLAY */}
       <div
         className={`overlay ${open ? "show" : ""}`}
         onClick={() => setOpen(false)}
       ></div>
 
-      {/* 🔷 SIDEBAR */}
+      {/* SIDEBAR */}
       <div className={`sidebar ${open ? "active" : ""}`}>
-        
         <div>
           <h2 className="logo">🎮 My Games</h2>
-
           <ul>
             {menu.map((item, i) => (
               <li key={i}>
@@ -52,7 +51,6 @@ export default function Sidebar() {
             ))}
           </ul>
         </div>
-
         <button className="logout" onClick={logout}>
           🚪 Logout
         </button>

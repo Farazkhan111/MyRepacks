@@ -1,21 +1,27 @@
 {
   "name": "server",
-  "version": "1.0.0",
-  "description": "",
+  "version": "3.0.0",
+  "description": "Game import server with HD images, TapTap mobile import, modular importers",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "import": "node auto-import.js",
+    "import:pc": "node auto-import.js --source fitgirl",
+    "import:mobile": "node auto-import.js --source mobile",
+    "import:upgrade-images": "node auto-import.js --update-images",
+    "import:fix-links": "node auto-import.js --update-links-only",
+    "import:dry": "node auto-import.js --dry --limit 5"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
-    "axios": "^1.6.0",
-    "cheerio": "^1.0.0",
+    "axios": "^1.15.2",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.6",
-    "dotenv": "^17.2.4",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongoose": "^9.2.0",
     "multer": "^2.0.2",

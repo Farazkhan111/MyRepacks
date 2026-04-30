@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
-import Sidebar from "./Sidebar";
-import axios from "axios";
+import Sidebar   from "./Sidebar";
+import axios     from "axios";
 import { useNavigate } from "react-router-dom";
-import url from "./url/url";
+import url       from "./url/url";
 
 export default function ShowGames() {
-  const [games,         setGames]        = useState([]);
-  const [trendingCount, setTrendingCount]= useState(0);
-  const [filter,        setFilter]       = useState("All"); // All | PC | Mobile
+  const [games,          setGames]          = useState([]);
+  const [trendingCount,  setTrendingCount]  = useState(0);
+  const [filter,         setFilter]         = useState("All");
+  const [selected,       setSelected]       = useState(new Set());   // ← NEW: bulk select
+  const [bulkDeleting,   setBulkDeleting]   = useState(false);
   const nav = useNavigate();
 
   useEffect(() => {
@@ -27,11 +29,47 @@ export default function ShowGames() {
 
   const editGame   = (id) => nav("/edit", { state: id });
   const deleteGame = (id) => {
+    if (!window.confirm("Delete this game?")) return;
     axios.post(url + "/del", { id });
     setGames(prev => prev.filter(g => g._id !== id));
+    setSelected(prev => { const s = new Set(prev); s.delete(id); return s; });
   };
 
-  const filtered = games.filter(g => filter === "All" || g.platform === filter || (!g.platform && filter === "PC"));
+  // ── Checkbox helpers ──────────────────────────────────────────
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const s = new Set(prev);
+      s.has(id) ? s.delete(id) : s.add(id);
+      return s;
+    });
+  };
+
+  const filtered      = games.filter(g => filter === "All" || g.platform === filter || (!g.platform && filter === "PC"));
+  const allChecked    = filtered.length > 0 && filtered.every(g => selected.has(g._id));
+  const someChecked   = filtered.some(g => selected.has(g._id));
+
+  const toggleSelectAll = () => {
+    if (allChecked) {
+      setSelected(prev => { const s = new Set(prev); filtered.forEach(g => s.delete(g._id)); return s; });
+    } else {
+      setSelected(prev => { const s = new Set(prev); filtered.forEach(g => s.add(g._id));    return s; });
+    }
+  };
+
+  // ── Bulk Delete ───────────────────────────────────────────────
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!window.confirm(`Delete ${selected.size} selected game(s)?`)) return;
+    setBulkDeleting(true);
+    try {
+      await axios.post(url + "/bulk-delete", { ids: [...selected] });
+      setGames(prev => prev.filter(g => !selected.has(g._id)));
+      setSelected(new Set());
+    } catch (err) {
+      alert("Bulk delete failed: " + err.message);
+    }
+    setBulkDeleting(false);
+  };
 
   const pcCount     = games.filter(g => !g.platform || g.platform === "PC").length;
   const mobileCount = games.filter(g => g.platform === "Mobile").length;
@@ -60,10 +98,39 @@ export default function ShowGames() {
             ))}
           </div>
 
+          {/* Bulk delete toolbar */}
+          {someChecked && (
+            <div className="bulk-toolbar">
+              <span>{selected.size} selected</span>
+              <button
+                className="bulk-delete-btn"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? "Deleting…" : `🗑 Delete Selected (${selected.size})`}
+              </button>
+              <button
+                className="bulk-clear-btn"
+                onClick={() => setSelected(new Set())}
+              >
+                ✕ Clear
+              </button>
+            </div>
+          )}
+
           <div className="games-table-wrapper">
             <table className="games-table">
               <thead>
                 <tr>
+                  {/* Select-all checkbox */}
+                  <th style={{ width: 36 }}>
+                    <input
+                      type="checkbox"
+                      checked={allChecked}
+                      ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
                   <th>#</th>
                   <th>Game</th>
                   <th>Platform</th>
@@ -74,7 +141,14 @@ export default function ShowGames() {
               </thead>
               <tbody>
                 {filtered.map((game, i) => (
-                  <tr key={game._id}>
+                  <tr key={game._id} className={selected.has(game._id) ? "row-selected" : ""}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(game._id)}
+                        onChange={() => toggleSelect(game._id)}
+                      />
+                    </td>
                     <td>{i + 1}</td>
                     <td className="game-info">
                       <img src={game.image} alt={game.name} />

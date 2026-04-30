@@ -28,7 +28,7 @@ exports.AddGame = async (req, res) => {
       othername:   req.body.othername,
       description: req.body.gdes,
       category:    req.body.gcat,
-      platform:    req.body.gplatform || "PC",   // ← NEW
+      platform:    req.body.gplatform || "PC",
       trending:    req.body.gtrend,
       link:        req.body.glink,
       fimage:      req.body.gfimage,
@@ -75,7 +75,7 @@ exports.Gupdate = async (req, res) => {
           othername:   req.body.othername,
           description: req.body.gdes,
           category:    req.body.gcat,
-          platform:    req.body.gplatform || "PC",   // ← NEW
+          platform:    req.body.gplatform || "PC",
           trending:    req.body.gtrend,
           link:        req.body.glink,
           fimage:      req.body.gfimage,
@@ -95,6 +95,21 @@ exports.Del = async (req, res) => {
     res.send("Deleted");
   } catch (err) {
     console.log(err);
+  }
+};
+
+// ── NEW: Bulk Delete ──────────────────────────────────────────────
+exports.BulkDelete = async (req, res) => {
+  try {
+    const { ids } = req.body;  // array of _id strings
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ success: false, error: "ids array required" });
+
+    const result = await games.deleteMany({ _id: { $in: ids } });
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
