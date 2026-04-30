@@ -36,7 +36,7 @@ export default function AutoUpdate() {
   const pollRef = useRef(null);
   const logRef = useRef(null);
   const autoScroll = useRef(true);
-  const prevStats = useRef({});
+  // const prevStats = useRef({});
 
   // ── Poll ──────────────────────────────────────────────────────
   const fetchStatus = () => {
@@ -89,7 +89,7 @@ export default function AutoUpdate() {
   // Re-fetch preview when options change (only when not running)
   useEffect(() => {
     if (!status?.isRunning) fetchPreview();
-  }, [targets, platform]);
+  });
 
   // ── Start ─────────────────────────────────────────────────────
   const handleStart = async () => {
