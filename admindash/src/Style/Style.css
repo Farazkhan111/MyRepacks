@@ -2043,3 +2043,169 @@ textarea {
 .log-warn             { background: rgba(251,191,36,0.04); }
 
 .log-info .log-msg    { color: #94a3b8; }
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTO UPDATE PAGE
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Two-column layout */
+.au-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .au-layout { grid-template-columns: 1fr; }
+}
+
+/* Panels */
+.au-config-panel,
+.au-progress-panel {
+  background: #12122a;
+  border: 1px solid #1e1e3a;
+  border-radius: 14px;
+  padding: 20px;
+}
+
+/* Section within a panel */
+.au-section {
+  margin-bottom: 22px;
+}
+.au-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4a4a7a;
+  margin-bottom: 12px;
+}
+
+/* Fix target cards */
+.au-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.au-target-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #1e1e3a;
+  background: #0f0f20;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+.au-target-card.selected {
+  border-color: #6c63ff;
+  background: rgba(108,99,255,0.08);
+}
+.au-target-card:hover:not(.disabled) {
+  border-color: #6c63ff;
+}
+.au-target-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.au-target-check {
+  font-size: 16px;
+  color: #6c63ff;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.au-target-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.au-target-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+.au-target-desc {
+  font-size: 11px;
+  color: #475569;
+}
+
+/* Preview grid */
+.au-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.au-preview-item {
+  background: #0f0f20;
+  border: 1px solid #1e1e3a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.au-preview-item.au-preview-total {
+  grid-column: 1 / -1;
+  border-color: #6c63ff;
+  background: rgba(108,99,255,0.07);
+}
+.au-preview-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+.au-preview-item.au-preview-total .au-preview-num { color: #a78bfa; font-size: 28px; }
+.au-preview-lbl {
+  font-size: 11px;
+  color: #475569;
+}
+
+/* Progress bar */
+.au-progress-bar-track {
+  height: 8px;
+  background: #1a1a2e;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.au-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6c63ff, #a78bfa);
+  border-radius: 4px;
+  min-width: 2px;
+}
+
+/* Fix counters */
+.au-fix-counters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.au-fix-chip {
+  background: #0f0f20;
+  border: 1px solid #1e1e3a;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.au-fix-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: #4ade80;
+}
+.au-fix-lbl {
+  font-size: 10px;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.au-loading-dot {
+  font-size: 12px;
+  opacity: 0.7;
+}

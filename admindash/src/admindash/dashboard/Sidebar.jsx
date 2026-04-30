@@ -16,7 +16,8 @@ export default function Sidebar() {
     { path: "/add",       name: "Add Game",      icon: "➕" },
     { path: "/show",      name: "Show Game",     icon: "🎮" },
     { path: "/scraper",   name: "Scraper",       icon: "🔗" },
-    { path: "/import",    name: "Import Games",  icon: "📥" },  // ← NEW
+    { path: "/import",    name: "Import Games",  icon: "📥" },
+    { path: "/autoupdate",name: "Auto Update",   icon: "🔄" },
   ];
 
   return (

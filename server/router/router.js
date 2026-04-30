@@ -1,7 +1,8 @@
-const express           = require("express");
-const gameController    = require("../controller/Gamecontroller");
-const scraperController = require("../controller/ScraperController");
-const importController  = require("../controller/ImportController");
+const express              = require("express");
+const gameController       = require("../controller/Gamecontroller");
+const scraperController    = require("../controller/ScraperController");
+const importController     = require("../controller/ImportController");
+const autoUpdateController = require("../controller/AutoUpdateController");
 
 const Router = express.Router();
 
@@ -35,5 +36,11 @@ Router.post("/import/start",  importController.StartImport);
 Router.post("/import/stop",   importController.StopImport);
 Router.get("/import/status",  importController.ImportStatus);
 Router.post("/import/reset",  importController.ResetImport);
+
+// ── Auto Update Engine ────────────────────────────────────────────
+Router.post("/autoupdate/start",   autoUpdateController.StartAutoUpdate);
+Router.post("/autoupdate/stop",    autoUpdateController.StopAutoUpdate);
+Router.get("/autoupdate/status",   autoUpdateController.AutoUpdateStatus);
+Router.post("/autoupdate/preview", autoUpdateController.AutoUpdatePreview);
 
 module.exports = Router;
