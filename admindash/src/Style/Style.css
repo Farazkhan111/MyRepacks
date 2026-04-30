@@ -1387,7 +1387,7 @@ textarea {
 .ss-img:hover { opacity: 0.8; }
 
 /* ── Image Search Panel ── */
-.img-search-panel {}
+
 .img-search-hint { font-size: 13px; color: rgba(200,210,230,0.45); margin: 0 0 14px; }
 .img-search-row {
   display: flex;
