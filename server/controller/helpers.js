@@ -347,62 +347,111 @@ async function fetchYouTubeTrailer(gameName, platform) {
   return null;
 }
 
-// ── IGDB image search ─────────────────────────────────────────────
-async function fetchIGDBImages(gameName) {
-  try {
-    const token = await getIGDBToken();
-    const res   = await axios.post(
-      "https://api.igdb.com/v4/games",
-      `fields name,cover.url,screenshots.url,summary;
-       search "${gameName.replace(/"/g, "")}";
-       limit 1;`,
-      {
-        headers: {
-          "Client-ID":     IGDB_CLIENT_ID,
-          Authorization:  `Bearer ${token}`,
-          "Content-Type": "text/plain",
-        },
-        timeout: 10000,
-      }
-    );
-    const game = (res.data || [])[0];
-    if (!game) return null;
-    const cover = game.cover?.url
-      ? "https:" + game.cover.url.replace("t_thumb", "t_1080p")
-      : null;
-    const screenshots = (game.screenshots || []).slice(0, 4).map(s =>
-      "https:" + s.url.replace("t_thumb", "t_screenshot_huge")
-    );
-    return { cover, screenshots, summary: game.summary || null };
-  } catch (_) { return null; }
+// ── Title match checker ───────────────────────────────────────────
+// Verifies the API result title actually belongs to the game we searched.
+// Both names are stripped to core words (no stop/noise words), then we
+// check that enough words overlap in either direction.
+function titleMatches(searchName, resultName) {
+  if (!resultName) return false;
+
+  function normalize(s) {
+    return s.toLowerCase()
+      .replace(/[''`]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  const STOP = new Set([
+    "the","a","an","of","in","on","at","for","to","and","or","by","with",
+    "from","into","edition","remastered","remake","definitive","complete",
+    "ultimate","gold","goty","deluxe","premium","collection","bundle",
+    "pack","repack","pc","mobile","android","ios",
+  ]);
+
+  function coreWords(s) {
+    return normalize(s).split(" ").filter(w => w.length > 1 && !STOP.has(w));
+  }
+
+  const sw = coreWords(searchName);
+  const rw = coreWords(resultName);
+  if (!sw.length || !rw.length) return false;
+
+  // Count overlapping words (prefix match handles plurals/slight variations)
+  const matched = sw.filter(w => rw.some(r => r === w || r.startsWith(w) || w.startsWith(r))).length;
+
+  // Accept if 60%+ of search words found in result, OR 60%+ of result words found in search
+  return (matched / sw.length) >= 0.6 || (matched / rw.length) >= 0.6;
 }
 
-// ── RAWG image/description search ────────────────────────────────
-async function fetchRAWGData(gameName) {
-  try {
-    const RAWG_KEY = process.env.RAWG_API_KEY;
-    const res = await axios.get("https://api.rawg.io/api/games", {
-      params: { key: RAWG_KEY, search: gameName, page_size: 1 },
-      timeout: 10000,
-    });
-    const game = (res.data?.results || [])[0];
-    if (!game) return null;
-    // Fetch detail for description
-    let description = "";
+// ── IGDB image search (tries all name variants, verifies title) ───
+async function fetchIGDBImages(gameName) {
+  const variants = buildSearchVariants(gameName);
+  for (const name of variants) {
     try {
-      const detail = await axios.get(`https://api.rawg.io/api/games/${game.id}`, {
-        params: { key: RAWG_KEY },
+      const token = await getIGDBToken();
+      const res   = await axios.post(
+        "https://api.igdb.com/v4/games",
+        `fields name,cover.url,screenshots.url,summary;
+         search "${name.replace(/"/g, "")}";
+         limit 5;`,
+        {
+          headers: {
+            "Client-ID":     IGDB_CLIENT_ID,
+            Authorization:  `Bearer ${token}`,
+            "Content-Type": "text/plain",
+          },
+          timeout: 10000,
+        }
+      );
+      const results = res.data || [];
+      // Find first result that has a cover AND whose title matches what we searched
+      const game = results.find(g => g.cover?.url && titleMatches(name, g.name));
+      if (!game) continue;
+      const cover = "https:" + game.cover.url.replace("t_thumb", "t_1080p");
+      const screenshots = (game.screenshots || []).slice(0, 4).map(s =>
+        "https:" + s.url.replace("t_thumb", "t_screenshot_huge")
+      );
+      return { cover, screenshots, summary: game.summary || null, matchedName: name, resultTitle: game.name };
+    } catch (_) {}
+  }
+  return null;
+}
+
+// ── RAWG image/description search (tries all name variants, verifies title) ──
+async function fetchRAWGData(gameName) {
+  const RAWG_KEY = process.env.RAWG_API_KEY;
+  const variants = buildSearchVariants(gameName);
+  for (const name of variants) {
+    try {
+      const res = await axios.get("https://api.rawg.io/api/games", {
+        params: { key: RAWG_KEY, search: name, page_size: 5 },
         timeout: 10000,
       });
-      description = detail.data?.description_raw || "";
+      const results = res.data?.results || [];
+      // Find first result that has an image AND whose title matches what we searched
+      const game = results.find(g => g.background_image && titleMatches(name, g.name));
+      if (!game) continue;
+      // Fetch full detail for description
+      let description = "";
+      try {
+        const detail = await axios.get(`https://api.rawg.io/api/games/${game.id}`, {
+          params: { key: RAWG_KEY },
+          timeout: 10000,
+        });
+        description = detail.data?.description_raw || "";
+      } catch (_) {}
+      return {
+        cover:       game.background_image || null,
+        background:  game.background_image_additional || game.background_image || null,
+        screenshots: (game.short_screenshots || []).slice(1, 5).map(s => s.image),
+        description,
+        matchedName:  name,
+        resultTitle:  game.name,
+      };
     } catch (_) {}
-    return {
-      cover:       game.background_image || null,
-      background:  game.background_image_additional || game.background_image || null,
-      screenshots: (game.short_screenshots || []).slice(1, 5).map(s => s.image),
-      description,
-    };
-  } catch (_) { return null; }
+  }
+  return null;
 }
 
 module.exports = {

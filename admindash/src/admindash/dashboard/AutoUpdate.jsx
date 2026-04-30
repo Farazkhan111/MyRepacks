@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Sidebar from "./Sidebar";
-import axios   from "axios";
-import url     from "./url/url";
+import axios from "axios";
+import url from "./url/url";
 
 const API = url;
 
@@ -11,32 +11,32 @@ function fmtTime(iso) {
 }
 function logIcon(t) {
   if (t === "success") return "✅";
-  if (t === "error")   return "❌";
-  if (t === "warn")    return "⚠️";
+  if (t === "error") return "❌";
+  if (t === "warn") return "⚠️";
   return "ℹ️";
 }
 
 const FIX_OPTIONS = [
-  { key: "link",        label: "🔗 Download Links",  desc: "APKPure (Mobile) / FitGirl (PC)"   },
-  { key: "image",       label: "🖼 Images",           desc: "Cover + screenshots from IGDB/RAWG" },
-  { key: "description", label: "📝 Descriptions",    desc: "Game summary / description text"    },
-  { key: "trailer",     label: "🎬 Trailers",         desc: "YouTube official trailer links"     },
+  { key: "link", label: "🔗 Download Links", desc: "APKPure (Mobile) / FitGirl (PC)" },
+  { key: "image", label: "🖼 Images", desc: "Cover + screenshots from IGDB/RAWG" },
+  { key: "description", label: "📝 Descriptions", desc: "Game summary / description text" },
+  { key: "trailer", label: "🎬 Trailers", desc: "YouTube official trailer links" },
 ];
 
 export default function AutoUpdate() {
-  const [targets,   setTargets]   = useState(["link", "image", "description", "trailer"]);
-  const [platform,  setPlatform]  = useState("both");
-  const [status,    setStatus]    = useState(null);
-  const [preview,   setPreview]   = useState(null);
-  const [loading,   setLoading]   = useState(false);
-  const [preloading,setPreloading]= useState(false);
-  const [message,   setMessage]   = useState("");
-  const [flash,     setFlash]     = useState({});
-
-  const pollRef    = useRef(null);
-  const logRef     = useRef(null);
+  const [targets, setTargets] = useState(["link", "image", "description", "trailer"]);
+  const [platform, setPlatform] = useState("both");
+  const [status, setStatus] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [preloading, setPreloading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [flash, setFlash] = useState({});
+  const [deleteNoLink, setDeleteNoLink] = useState(false);
+  const pollRef = useRef(null);
+  const logRef = useRef(null);
   const autoScroll = useRef(true);
-  const prevStats  = useRef({});
+  const prevStats = useRef({});
 
   // ── Poll ──────────────────────────────────────────────────────
   const fetchStatus = () => {
@@ -46,7 +46,7 @@ export default function AutoUpdate() {
           const next = res.data;
           // Flash changed stat counters
           const newFlash = {};
-          ["linksFixed","imagesFixed","descFixed"].forEach(k => {
+          ["linksFixed", "imagesFixed", "descFixed"].forEach(k => {
             if (prev?.stats?.[k] !== next.stats?.[k]) newFlash[k] = true;
           });
           if (Object.keys(newFlash).length) {
@@ -56,7 +56,7 @@ export default function AutoUpdate() {
           return next;
         });
       })
-      .catch(() => {});
+      .catch(() => { });
   };
 
   useEffect(() => { fetchStatus(); }, []);
@@ -82,7 +82,7 @@ export default function AutoUpdate() {
     try {
       const res = await axios.post(API + "/autoupdate/preview", { targets, platform });
       setPreview(res.data);
-    } catch (_) {}
+    } catch (_) { }
     setPreloading(false);
   };
 
@@ -96,7 +96,7 @@ export default function AutoUpdate() {
     if (!targets.length) return setMessage("Select at least one fix target.");
     setLoading(true);
     try {
-      const res = await axios.post(API + "/autoupdate/start", { targets, platform });
+      const res = await axios.post(API + "/autoupdate/start", { targets, platform, deleteNoLink });
       setMessage(res.data.message);
       setTimeout(fetchStatus, 600);
     } catch (err) {
@@ -121,12 +121,12 @@ export default function AutoUpdate() {
   const toggleTarget = (key) =>
     setTargets(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
 
-  const isRunning  = status?.isRunning;
-  const s          = status?.stats || {};
-  const log        = status?.log   || [];
-  const cur        = status?.currentGame;
-  const hasGame    = cur?.name;
-  const pct        = s.total ? Math.round((s.done / s.total) * 100) : 0;
+  const isRunning = status?.isRunning;
+  const s = status?.stats || {};
+  const log = status?.log || [];
+  const cur = status?.currentGame;
+  const hasGame = cur?.name;
+  const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
 
   return (
     <>
@@ -178,8 +178,8 @@ export default function AutoUpdate() {
                 <div className="au-section-title">Platform</div>
                 <div className="platform-selector">
                   {[
-                    { val: "both",   label: "🌐 Both" },
-                    { val: "PC",     label: "💻 PC" },
+                    { val: "both", label: "🌐 Both" },
+                    { val: "PC", label: "💻 PC" },
                     { val: "Mobile", label: "📱 Mobile" },
                   ].map(opt => (
                     <button
@@ -225,7 +225,22 @@ export default function AutoUpdate() {
                   <p style={{ color: "#555", fontSize: 13 }}>Loading preview…</p>
                 )}
               </div>
-
+              <div className="au-section">
+                <div className="au-section-title">Post-run cleanup</div>
+                <label
+                  className={`au-target-card ${deleteNoLink ? "selected" : ""} ${isRunning ? "disabled" : ""}`}
+                  onClick={() => !isRunning && setDeleteNoLink(prev => !prev)}
+                  style={{ borderColor: deleteNoLink ? "#ef4444" : undefined }}
+                >
+                  <div className="au-target-check">{deleteNoLink ? "☑" : "☐"}</div>
+                  <div className="au-target-text">
+                    <span className="au-target-label">🗑 Delete games with no link</span>
+                    <span className="au-target-desc" style={{ color: deleteNoLink ? "#f87171" : undefined }}>
+                      After update, permanently removes games still missing a download link
+                    </span>
+                  </div>
+                </label>
+              </div>
               {/* Actions */}
               <div className="import-actions">
                 {!isRunning ? (
@@ -281,6 +296,11 @@ export default function AutoUpdate() {
                 <div className={`au-fix-chip ${flash.descFixed ? "stat-flash" : ""}`}>
                   <span className="au-fix-num">{s.descFixed ?? 0}</span>
                   <span className="au-fix-lbl">Descs Fixed</span>
+                </div>
+                <div className={`au-fix-chip`} style={{ borderColor: s.deleted ? "#ef4444" : undefined }}>
+                  <span className="au-fix-num" style={{ color: s.deleted ? "#f87171" : undefined }}>
+                  {s.deleted ?? 0}</span>
+                  <span className="au-fix-lbl">Deleted</span>
                 </div>
               </div>
 

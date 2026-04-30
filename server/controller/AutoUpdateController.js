@@ -1,5 +1,6 @@
 require("dotenv").config();
 
+const axios  = require("axios");
 const games  = require("../model/allgamesmodel");
 const { getFitgirlLink, getApkPureLink, fetchYouTubeTrailer, fetchIGDBImages, fetchRAWGData, buildSearchVariants } = require("./helpers");
 
@@ -19,7 +20,7 @@ function pushLog(type, msg) {
 }
 
 // ── Stats counters ────────────────────────────────────────────────
-let stats = { total: 0, done: 0, linksFixed: 0, imagesFixed: 0, descFixed: 0, errors: 0 };
+let stats = { total: 0, done: 0, linksFixed: 0, imagesFixed: 0, descFixed: 0, errors: 0, deleted: 0 };
 
 // ── What counts as "missing" ──────────────────────────────────────
 function needsLink(g)        { return !g.link || g.link.trim().length < 5; }
@@ -39,9 +40,29 @@ function buildQuery(targets, platform) {
   if (platform !== "both") q.platform = platform;
   return q;
 }
+// ── Delete games with no download link ────────────────────────────
+async function deleteGamesWithNoLink(platform) {
+  const query = { $or: [{ link: { $in: [null, ""] } }, { link: { $exists: false } }] };
+  if (platform !== "both") query.platform = platform;
+
+  const toDelete = await games.find(query).select("_id name platform").lean();
+  if (!toDelete.length) {
+    pushLog("info", "🗑 Delete pass: no games without links found.");
+    return 0;
+  }
+
+  const ids = toDelete.map(g => g._id);
+  await games.deleteMany({ _id: { $in: ids } });
+
+  toDelete.forEach(g =>
+    pushLog("warn", `🗑 Deleted [${g.platform}] "${g.name}" — no download link found`)
+  );
+  pushLog("success", `🗑 Deleted ${toDelete.length} game(s) with no download link.`);
+  return toDelete.length;
+}
 
 // ── Main auto-update loop ─────────────────────────────────────────
-async function runAutoUpdate({ targets, platform, batchSize }) {
+async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
   if (running) return;
   running  = true;
   stopReq  = false;
@@ -93,7 +114,8 @@ async function runAutoUpdate({ targets, platform, batchSize }) {
     // ── 2. Images ───────────────────────────────────────────────
     if (targets.includes("image") && (needsImage(game) || !game.fimage)) {
       currentGame.step = "fetching images…";
-      pushLog("info", `[${game.platform}] "${game.name}" — fetching images…`);
+      const imgVariants = buildSearchVariants(game.name);
+      pushLog("info", `[${game.platform}] "${game.name}" — fetching images… (${imgVariants.length} name variant${imgVariants.length > 1 ? "s" : ""} to try)`);
       try {
         let imgData = null;
         if (game.platform === "Mobile") {
@@ -103,7 +125,8 @@ async function runAutoUpdate({ targets, platform, batchSize }) {
             if (!game.fimage) update.fimage = imgData.screenshots[0] || imgData.cover;
             imgData.screenshots.forEach(url => newImages.push({ type: "screenshot", url, source: "igdb" }));
             if (!game.image) stats.imagesFixed++;
-            pushLog("success", `[${game.platform}] "${game.name}" — images ✅ (IGDB)`);
+            const matchInfo = imgData.resultTitle && imgData.resultTitle !== game.name ? ` via "${imgData.matchedName}" → matched "${imgData.resultTitle}"` : "";
+            pushLog("success", `[${game.platform}] "${game.name}" — images ✅ (IGDB${matchInfo})`);
           }
         } else {
           imgData = await fetchRAWGData(game.name);
@@ -112,10 +135,11 @@ async function runAutoUpdate({ targets, platform, batchSize }) {
             if (!game.fimage) update.fimage = imgData.background || imgData.cover;
             imgData.screenshots.forEach(url => newImages.push({ type: "screenshot", url, source: "rawg" }));
             if (!game.image) stats.imagesFixed++;
-            pushLog("success", `[${game.platform}] "${game.name}" — images ✅ (RAWG)`);
+            const matchInfo = imgData.resultTitle && imgData.resultTitle !== game.name ? ` via "${imgData.matchedName}" → matched "${imgData.resultTitle}"` : "";
+            pushLog("success", `[${game.platform}] "${game.name}" — images ✅ (RAWG${matchInfo})`);
           }
         }
-        if (!imgData?.cover) pushLog("warn", `[${game.platform}] "${game.name}" — images not found`);
+        if (!imgData?.cover) pushLog("warn", `[${game.platform}] "${game.name}" — images not found (tried: ${imgVariants.map(v => `"${v}"`).join(", ")})`);
       } catch (e) {
         pushLog("error", `[${game.platform}] "${game.name}" — image error: ${e.message}`);
         stats.errors++;
@@ -130,6 +154,8 @@ async function runAutoUpdate({ targets, platform, batchSize }) {
       pushLog("info", `[${game.platform}] "${game.name}" — fetching description…`);
       try {
         let desc = null;
+        let descSource = "api";
+
         if (game.platform === "Mobile") {
           const d = await fetchIGDBImages(game.name);  // summary is returned by IGDB helper
           desc = d?.summary || null;
@@ -137,12 +163,61 @@ async function runAutoUpdate({ targets, platform, batchSize }) {
           const d = await fetchRAWGData(game.name);
           desc = d?.description || null;
         }
+
+        // ── Claude AI fallback: generate description if none found ──
+        if (!desc || desc.trim().length < 20) {
+          pushLog("info", `[${game.platform}] "${game.name}" — no description found, generating with AI…`);
+          currentGame.step = "generating description with AI…";
+          try {
+            const platformHint = game.platform === "Mobile" ? "mobile (Android/iOS)" : "PC";
+            const aiResp = await axios.post(
+              "https://api.anthropic.com/v1/messages",
+              {
+                model: "claude-sonnet-4-5",
+                max_tokens: 500,
+                messages: [
+                  {
+                    role: "user",
+                    content:
+                      `Write a compelling game description for "${game.name}" (${platformHint} game). ` +
+                      `Write 2-3 paragraphs covering: what kind of game it is, its main gameplay mechanics, ` +
+                      `setting/story, and what makes it fun or unique. ` +
+                      `Write in an engaging, informative tone like a game store page. ` +
+                      `Do NOT include any headings, bullet points, or the game name as a title. ` +
+                      `Just write the description text directly.`,
+                  },
+                ],
+              },
+              {
+                headers: {
+                  "x-api-key":         process.env.ANTHROPIC_API_KEY,
+                  "anthropic-version": "2023-06-01",
+                  "Content-Type":      "application/json",
+                },
+                timeout: 20000,
+              }
+            );
+            const aiText = (aiResp.data?.content || [])
+              .filter(b => b.type === "text")
+              .map(b => b.text)
+              .join("")
+              .trim();
+            if (aiText && aiText.length >= 20) {
+              desc       = aiText;
+              descSource = "ai-generated";
+            }
+          } catch (aiErr) {
+            pushLog("warn", `[${game.platform}] "${game.name}" — AI description failed: ${aiErr.message}`);
+          }
+        }
+
         if (desc && desc.trim().length >= 20) {
-          update.description = desc.trim().slice(0, 2000); // cap at 2000 chars
+          update.description = desc.trim().slice(0, 2000);
           stats.descFixed++;
-          pushLog("success", `[${game.platform}] "${game.name}" — description ✅ (${update.description.length} chars)`);
+          const label = descSource === "ai-generated" ? "description ✅ (AI-generated)" : `description ✅ (${update.description.length} chars)`;
+          pushLog("success", `[${game.platform}] "${game.name}" — ${label}`);
         } else {
-          pushLog("warn", `[${game.platform}] "${game.name}" — description not found`);
+          pushLog("warn", `[${game.platform}] "${game.name}" — description not found and AI generation failed`);
         }
       } catch (e) {
         pushLog("error", `[${game.platform}] "${game.name}" — description error: ${e.message}`);
@@ -196,29 +271,37 @@ async function runAutoUpdate({ targets, platform, batchSize }) {
 
   running     = false;
   currentGame = { name: "", platform: "", step: "" };
-  pushLog(
-    stopReq ? "warn" : "success",
-    `${stopReq ? "⏹ Stopped" : "✅ Finished"} — ${stats.done}/${stats.total} processed | links:${stats.linksFixed} images:${stats.imagesFixed} desc:${stats.descFixed} errors:${stats.errors}`
-  );
+  // REPLACE the last pushLog call with:
+pushLog(
+  stopReq ? "warn" : "success",
+  `${stopReq ? "⏹ Stopped" : "✅ Finished"} — ${stats.done}/${stats.total} processed | links:${stats.linksFixed} images:${stats.imagesFixed} desc:${stats.descFixed} errors:${stats.errors}`
+);
+
+// ── Post-run: delete games still missing a link ──────────────────
+if (!stopReq && deleteNoLink) {
+  pushLog("info", "🗑 Running post-update cleanup — deleting games with no download link…");
+  const deleted = await deleteGamesWithNoLink(platform);
+  stats.deleted = deleted;
+}
 }
 
 // ── Controllers ───────────────────────────────────────────────────
 
 exports.StartAutoUpdate = async (req, res) => {
   if (running) return res.json({ success: false, message: "Auto-update already running" });
-
+  const deleteNoLink = req.body.deleteNoLink === true;
   const targets   = Array.isArray(req.body.targets) && req.body.targets.length
     ? req.body.targets
     : ["link", "image", "description", "trailer"];
   const platform  = req.body.platform || "both";
   const batchSize = Number(req.body.batchSize) || 50;
 
-  runAutoUpdate({ targets, platform, batchSize }).catch(err => {
+  runAutoUpdate({ targets, platform, batchSize ,deleteNoLink }).catch(err => {
     console.error("[AutoUpdate] Fatal:", err.message);
     running = false;
   });
 
-  res.json({ success: true, message: "Auto-update started", targets, platform });
+  res.json({ success: true, message: "Auto-update started", targets, platform , deleteNoLink });
 };
 
 exports.StopAutoUpdate = (req, res) => {
