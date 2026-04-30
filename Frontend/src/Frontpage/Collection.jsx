@@ -53,7 +53,7 @@ function GameCard({ game, index, onClick }) {
   useEffect(() => {
     if (!iframeRef.current) return
     iframeRef.current.src = hovered && ytSrc ? ytSrc : ''
-  }, [hovered])
+  }, [hovered, ytSrc])
 
   return (
     <div
