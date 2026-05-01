@@ -3,9 +3,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import url from './url'
 
-const PC_CATEGORIES     = ['All', 'Roleplay', 'Simulation', 'Sports', 'Action', 'Strategy', 'Adventure']
-const MOBILE_CATEGORIES = ['All', 'Action', 'Casual', 'Puzzle', 'Racing', 'RPG', 'Sports', 'Strategy']
-
 /* ── Extract YouTube video ID from any YT URL format ── */
 function getYouTubeId(ytUrl) {
   if (!ytUrl) return null
@@ -43,13 +40,11 @@ function GameCard({ game, index, onClick }) {
     clearTimeout(hoverTimer.current)
     setHovered(false)
     setIframeReady(false)
-    // Pause playback via postMessage before resetting src
     iframeRef.current?.contentWindow?.postMessage(
       JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*'
     )
   }
 
-  // Swap iframe src on hover state change
   useEffect(() => {
     if (!iframeRef.current) return
     iframeRef.current.src = hovered && ytSrc ? ytSrc : ''
@@ -65,7 +60,6 @@ function GameCard({ game, index, onClick }) {
     >
       <div className="col-card-img-wrap">
 
-        {/* Static thumbnail — always present, crossfades out when iframe ready */}
         <img
           src={game.fimage}
           alt={game.name}
@@ -76,7 +70,6 @@ function GameCard({ game, index, onClick }) {
           }}
         />
 
-        {/* YouTube iframe — always in DOM when videoId exists so ref is stable */}
         {videoId && (
           <iframe
             ref={iframeRef}
@@ -86,13 +79,12 @@ function GameCard({ game, index, onClick }) {
             allowFullScreen={false}
             title={game.name}
             onLoad={() => {
-              // Give YT player ~800 ms to start before crossfading
               if (hovered) setTimeout(() => setIframeReady(true), 800)
             }}
             style={{
               opacity: iframeReady ? 1 : 0,
               transition: 'opacity 0.4s ease',
-              pointerEvents: 'none', // clicks pass through to the card
+              pointerEvents: 'none',
             }}
           />
         )}
@@ -101,14 +93,12 @@ function GameCard({ game, index, onClick }) {
 
         {game.category && <span className="col-card-cat">{game.category}</span>}
 
-        {/* Spinner while iframe buffers */}
         {hovered && videoId && !iframeReady && (
           <div className="col-card-play" style={{ opacity: 1 }}>
             <div className="col-card-spinner" />
           </div>
         )}
 
-        {/* Default play icon for cards with no video */}
         {!videoId && (
           <div className="col-card-play">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -117,7 +107,6 @@ function GameCard({ game, index, onClick }) {
           </div>
         )}
 
-        {/* Live PREVIEW badge */}
         {hovered && videoId && iframeReady && (
           <div className="col-card-video-badge">
             <span className="col-card-video-dot" />
@@ -168,7 +157,18 @@ export default function Collection() {
     category === 'All' || g.category === category
   )
 
-  const cats        = platform === 'Mobile' ? MOBILE_CATEGORIES : PC_CATEGORIES
+  /* ── Derive categories dynamically from the fetched games ── */
+  const cats = [
+    'All',
+    ...Array.from(
+      new Set(
+        platformGames
+          .map(g => g.category)
+          .filter(Boolean)          // drop null / undefined / ''
+      )
+    ).sort(),
+  ]
+
   const pcCount     = allgames.filter(g => !g.platform || g.platform === 'PC').length
   const mobileCount = allgames.filter(g => g.platform === 'Mobile').length
 

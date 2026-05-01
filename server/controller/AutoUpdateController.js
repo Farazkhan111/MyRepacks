@@ -2,7 +2,15 @@ require("dotenv").config();
 
 const axios  = require("axios");
 const games  = require("../model/allgamesmodel");
-const { getFitgirlLink, getApkPureLink, fetchYouTubeTrailer, fetchIGDBImages, fetchRAWGData, buildSearchVariants } = require("./helpers");
+const {
+  getFitgirlLink,
+  getApkPureLink,
+  fetchYouTubeTrailer,
+  fetchIGDBImages,
+  fetchRAWGData,
+  fetchBannerCoverArt,   // ← replaces direct IGDB/RAWG image calls
+  buildSearchVariants,
+} = require("./helpers");
 
 // ── In-memory state ───────────────────────────────────────────────
 let running       = false;
@@ -40,6 +48,7 @@ function buildQuery(targets, platform) {
   if (platform !== "both") q.platform = platform;
   return q;
 }
+
 // ── Delete games with no download link ────────────────────────────
 async function deleteGamesWithNoLink(platform) {
   const query = { $or: [{ link: { $in: [null, ""] } }, { link: { $exists: false } }] };
@@ -91,7 +100,7 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
     if (targets.includes("link") && needsLink(game)) {
       currentGame.step = game.platform === "Mobile" ? "searching APKPure…" : "searching FitGirl…";
       const nameVariants = buildSearchVariants(game.name);
-      pushLog("info", `[${game.platform}] "${game.name}" — fetching link… (${nameVariants.length} name variant${nameVariants.length > 1 ? "s" : ""} to try)`);
+      pushLog("info", `[${game.platform}] "${game.name}" — fetching link… (${nameVariants.length} variant${nameVariants.length > 1 ? "s" : ""} to try)`);
       try {
         const link = game.platform === "Mobile"
           ? await getApkPureLink(game.name)
@@ -101,7 +110,7 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
           stats.linksFixed++;
           pushLog("success", `[${game.platform}] "${game.name}" — link ✅ ${link.slice(0, 60)}…`);
         } else {
-          pushLog("warn", `[${game.platform}] "${game.name}" — link not found (tried: ${nameVariants.map(v => `"${v}"`).join(", ")})`);
+          pushLog("warn", `[${game.platform}] "${game.name}" — link not found`);
         }
       } catch (e) {
         pushLog("error", `[${game.platform}] "${game.name}" — link error: ${e.message}`);
@@ -111,35 +120,63 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
 
     if (stopReq) break;
 
-    // ── 2. Images ───────────────────────────────────────────────
+    // ── 2. Images (Banner/Key-art with game name in image) ───────
     if (targets.includes("image") && (needsImage(game) || !game.fimage)) {
-      currentGame.step = "fetching images…";
-      const imgVariants = buildSearchVariants(game.name);
-      pushLog("info", `[${game.platform}] "${game.name}" — fetching images… (${imgVariants.length} name variant${imgVariants.length > 1 ? "s" : ""} to try)`);
+      currentGame.step = "fetching banner art…";
+      pushLog("info", `[${game.platform}] "${game.name}" — fetching banner cover art…`);
       try {
-        let imgData = null;
-        if (game.platform === "Mobile") {
-          imgData = await fetchIGDBImages(game.name);
-          if (imgData?.cover) {
-            if (!game.image)  update.image  = imgData.cover;
-            if (!game.fimage) update.fimage = imgData.screenshots[0] || imgData.cover;
-            imgData.screenshots.forEach(url => newImages.push({ type: "screenshot", url, source: "igdb" }));
-            if (!game.image) stats.imagesFixed++;
-            const matchInfo = imgData.resultTitle && imgData.resultTitle !== game.name ? ` via "${imgData.matchedName}" → matched "${imgData.resultTitle}"` : "";
-            pushLog("success", `[${game.platform}] "${game.name}" — images ✅ (IGDB${matchInfo})`);
-          }
+        // fetchBannerCoverArt tries: SteamGridDB → Steam → IGDB → RAWG
+        // All sources prioritise images that contain the game name/logo
+        const artData = await fetchBannerCoverArt(game.name, game.platform);
+
+        if (artData?.coverImage) {
+          if (!game.image)  update.image  = artData.coverImage;
+          if (!game.fimage) update.fimage = artData.heroImage || artData.coverImage;
+
+          // Add screenshots to images array
+          (artData.screenshots || []).forEach(url =>
+            newImages.push({ type: "screenshot", url, source: artData.source })
+          );
+
+          if (!game.image) stats.imagesFixed++;
+
+          const matchInfo = artData.matchedName && artData.matchedName !== game.name
+            ? ` → matched "${artData.matchedName}"`
+            : "";
+          pushLog("success",
+            `[${game.platform}] "${game.name}" — banner art ✅ (${artData.source}${matchInfo}) | has game name in image`
+          );
         } else {
-          imgData = await fetchRAWGData(game.name);
-          if (imgData?.cover) {
-            if (!game.image)  update.image  = imgData.cover;
-            if (!game.fimage) update.fimage = imgData.background || imgData.cover;
-            imgData.screenshots.forEach(url => newImages.push({ type: "screenshot", url, source: "rawg" }));
-            if (!game.image) stats.imagesFixed++;
-            const matchInfo = imgData.resultTitle && imgData.resultTitle !== game.name ? ` via "${imgData.matchedName}" → matched "${imgData.resultTitle}"` : "";
-            pushLog("success", `[${game.platform}] "${game.name}" — images ✅ (RAWG${matchInfo})`);
+          // Final fallback: try IGDB/RAWG directly for at least some image
+          pushLog("warn", `[${game.platform}] "${game.name}" — no banner art found, trying fallback…`);
+          try {
+            let fallbackData = null;
+            if (game.platform === "Mobile") {
+              fallbackData = await fetchIGDBImages(game.name);
+              if (fallbackData?.cover) {
+                if (!game.image)  update.image  = fallbackData.cover;
+                if (!game.fimage) update.fimage = fallbackData.screenshots[0] || fallbackData.cover;
+                fallbackData.screenshots.forEach(url => newImages.push({ type: "screenshot", url, source: "igdb" }));
+                if (!game.image) stats.imagesFixed++;
+                pushLog("info", `[${game.platform}] "${game.name}" — fallback image ✅ (IGDB)`);
+              }
+            } else {
+              fallbackData = await fetchRAWGData(game.name);
+              if (fallbackData?.cover) {
+                if (!game.image)  update.image  = fallbackData.cover;
+                if (!game.fimage) update.fimage = fallbackData.background || fallbackData.cover;
+                fallbackData.screenshots.forEach(url => newImages.push({ type: "screenshot", url, source: "rawg" }));
+                if (!game.image) stats.imagesFixed++;
+                pushLog("info", `[${game.platform}] "${game.name}" — fallback image ✅ (RAWG)`);
+              }
+            }
+            if (!fallbackData?.cover) {
+              pushLog("warn", `[${game.platform}] "${game.name}" — no images found anywhere`);
+            }
+          } catch (fallbackErr) {
+            pushLog("error", `[${game.platform}] "${game.name}" — fallback image error: ${fallbackErr.message}`);
           }
         }
-        if (!imgData?.cover) pushLog("warn", `[${game.platform}] "${game.name}" — images not found (tried: ${imgVariants.map(v => `"${v}"`).join(", ")})`);
       } catch (e) {
         pushLog("error", `[${game.platform}] "${game.name}" — image error: ${e.message}`);
         stats.errors++;
@@ -157,14 +194,14 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
         let descSource = "api";
 
         if (game.platform === "Mobile") {
-          const d = await fetchIGDBImages(game.name);  // summary is returned by IGDB helper
+          const d = await fetchIGDBImages(game.name);
           desc = d?.summary || null;
         } else {
           const d = await fetchRAWGData(game.name);
           desc = d?.description || null;
         }
 
-        // ── Claude AI fallback: generate description if none found ──
+        // Claude AI fallback
         if (!desc || desc.trim().length < 20) {
           pushLog("info", `[${game.platform}] "${game.name}" — no description found, generating with AI…`);
           currentGame.step = "generating description with AI…";
@@ -265,24 +302,21 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
     stats.done++;
     currentGame = { name: "", platform: "", step: "" };
 
-    // Small delay to avoid hammering APIs
     await new Promise(r => setTimeout(r, 1500));
   }
 
   running     = false;
   currentGame = { name: "", platform: "", step: "" };
-  // REPLACE the last pushLog call with:
-pushLog(
-  stopReq ? "warn" : "success",
-  `${stopReq ? "⏹ Stopped" : "✅ Finished"} — ${stats.done}/${stats.total} processed | links:${stats.linksFixed} images:${stats.imagesFixed} desc:${stats.descFixed} errors:${stats.errors}`
-);
+  pushLog(
+    stopReq ? "warn" : "success",
+    `${stopReq ? "⏹ Stopped" : "✅ Finished"} — ${stats.done}/${stats.total} processed | links:${stats.linksFixed} images:${stats.imagesFixed} desc:${stats.descFixed} errors:${stats.errors}`
+  );
 
-// ── Post-run: delete games still missing a link ──────────────────
-if (!stopReq && deleteNoLink) {
-  pushLog("info", "🗑 Running post-update cleanup — deleting games with no download link…");
-  const deleted = await deleteGamesWithNoLink(platform);
-  stats.deleted = deleted;
-}
+  if (!stopReq && deleteNoLink) {
+    pushLog("info", "🗑 Running post-update cleanup — deleting games with no download link…");
+    const deleted = await deleteGamesWithNoLink(platform);
+    stats.deleted = deleted;
+  }
 }
 
 // ── Controllers ───────────────────────────────────────────────────
@@ -296,12 +330,12 @@ exports.StartAutoUpdate = async (req, res) => {
   const platform  = req.body.platform || "both";
   const batchSize = Number(req.body.batchSize) || 50;
 
-  runAutoUpdate({ targets, platform, batchSize ,deleteNoLink }).catch(err => {
+  runAutoUpdate({ targets, platform, batchSize, deleteNoLink }).catch(err => {
     console.error("[AutoUpdate] Fatal:", err.message);
     running = false;
   });
 
-  res.json({ success: true, message: "Auto-update started", targets, platform , deleteNoLink });
+  res.json({ success: true, message: "Auto-update started", targets, platform, deleteNoLink });
 };
 
 exports.StopAutoUpdate = (req, res) => {
@@ -319,7 +353,6 @@ exports.AutoUpdateStatus = (req, res) => {
   });
 };
 
-// Preview: how many games would be affected
 exports.AutoUpdatePreview = async (req, res) => {
   try {
     const targets  = Array.isArray(req.body.targets) ? req.body.targets : ["link","image","description","trailer"];
@@ -327,12 +360,11 @@ exports.AutoUpdatePreview = async (req, res) => {
     const query    = buildQuery(targets, platform);
     const count    = await games.countDocuments(query);
 
-    // Also return individual counts per field
     const detail = {};
     const pFilter = platform !== "both" ? { platform } : {};
-    detail.noLink  = await games.countDocuments({ ...pFilter, $or: [{ link: { $in: [null,""] } }, { link: { $exists: false } }] });
-    detail.noImage = await games.countDocuments({ ...pFilter, $or: [{ image: { $in: [null,""] } }, { image: { $exists: false } }] });
-    detail.noDesc  = await games.countDocuments({ ...pFilter, $or: [{ description: { $in: [null,""] } }, { $expr: { $lt: [{ $strLenCP: { $ifNull: ["$description",""] } }, 20] } }] });
+    detail.noLink    = await games.countDocuments({ ...pFilter, $or: [{ link: { $in: [null,""] } }, { link: { $exists: false } }] });
+    detail.noImage   = await games.countDocuments({ ...pFilter, $or: [{ image: { $in: [null,""] } }, { image: { $exists: false } }] });
+    detail.noDesc    = await games.countDocuments({ ...pFilter, $or: [{ description: { $in: [null,""] } }, { $expr: { $lt: [{ $strLenCP: { $ifNull: ["$description",""] } }, 20] } }] });
     detail.noTrailer = await games.countDocuments({ ...pFilter, $or: [{ "trailer.url": { $in: [null,""] } }, { "trailer.url": { $exists: false } }] });
 
     res.json({ success: true, count, detail });

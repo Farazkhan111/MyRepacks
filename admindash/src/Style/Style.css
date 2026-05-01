@@ -2209,3 +2209,208 @@ textarea {
   font-size: 12px;
   opacity: 0.7;
 }
+/* ══════════════════════════════════════════════════════════════
+   IMPORT SOURCE TABS
+   Two big tab buttons at the top: "RAWG + IGDB" | "FitGirl"
+══════════════════════════════════════════════════════════════ */
+
+.import-source-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.import-source-tab {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 20px;
+  background: #1a1a2e;
+  border: 1.5px solid #2a2a3e;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.import-source-tab:hover {
+  border-color: #6c63ff;
+  background: #1e1e35;
+}
+
+.import-source-tab.active {
+  border-color: #6c63ff;
+  background: linear-gradient(135deg, #1e1e40 0%, #16213e 100%);
+  box-shadow: 0 0 0 1px #6c63ff33, 0 4px 20px #6c63ff22;
+}
+
+.ist-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e0e0ff;
+}
+
+.import-source-tab.active .ist-label {
+  color: #a78bfa;
+}
+
+.ist-desc {
+  font-size: 12px;
+  color: #666;
+}
+
+.import-source-tab.active .ist-desc {
+  color: #8880cc;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FITGIRL BANNER
+   Shown at the top of the FitGirl panel
+══════════════════════════════════════════════════════════════ */
+
+.fitgirl-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: linear-gradient(135deg, #1a1200 0%, #1a1a00 50%, #0d1a0d 100%);
+  border: 1.5px solid #3d3000;
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin-bottom: 22px;
+}
+
+.fitgirl-banner-icon {
+  font-size: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.fitgirl-banner-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffd700;
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+.fitgirl-banner-sub {
+  font-size: 13px;
+  color: #aaa;
+  line-height: 1.6;
+}
+
+.fitgirl-banner-sub a {
+  color: #ffd700;
+  text-decoration: none;
+  border-bottom: 1px dashed #ffd70066;
+}
+
+.fitgirl-banner-sub a:hover {
+  color: #ffe44d;
+  border-bottom-color: #ffe44d;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   IMAGE QUALITY NOTE
+   Shown when FitGirl import is stopped
+══════════════════════════════════════════════════════════════ */
+
+.fg-image-quality-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0d1a0d;
+  border: 1.5px solid #1a3a1a;
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: #aaa;
+  line-height: 1.5;
+}
+
+.fg-quality-badge {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #1a3a1a, #0f2a0f);
+  border: 1px solid #2a5a2a;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ade80;
+  white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FITGIRL START BUTTON  (gold accent instead of purple)
+══════════════════════════════════════════════════════════════ */
+
+.import-start-btn.fitgirl-start {
+  background: linear-gradient(135deg, #7a5c00 0%, #c49000 100%);
+  box-shadow: 0 4px 18px #c4900033;
+}
+
+.import-start-btn.fitgirl-start:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9a7500 0%, #e0aa00 100%);
+  box-shadow: 0 6px 24px #e0aa0044;
+  transform: translateY(-1px);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FITGIRL INFO BOX  (gold border instead of blue)
+══════════════════════════════════════════════════════════════ */
+
+.import-info-box.fitgirl-info-box {
+  border-color: #3d3000;
+  background: linear-gradient(135deg, #13110033 0%, #1a150033 100%);
+}
+
+.import-info-box.fitgirl-info-box h4 {
+  color: #ffd700;
+}
+
+.import-info-box.fitgirl-info-box ul li::marker {
+  color: #ffd700;
+}
+
+.import-info-box.fitgirl-info-box code {
+  background: #2a2000;
+  color: #ffd700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+/* nested list inside fitgirl info box */
+.import-info-box.fitgirl-info-box ul ul {
+  margin-top: 4px;
+  padding-left: 18px;
+}
+
+.import-info-box.fitgirl-info-box ul ul li {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE  — stack tabs on narrow screens
+══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .import-source-tabs {
+    flex-direction: column;
+  }
+  .import-source-tab {
+    min-width: unset;
+  }
+  .fitgirl-banner {
+    flex-direction: column;
+    gap: 10px;
+  }
+}

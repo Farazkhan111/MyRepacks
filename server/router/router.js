@@ -3,6 +3,7 @@ const gameController       = require("../controller/Gamecontroller");
 const scraperController    = require("../controller/ScraperController");
 const importController     = require("../controller/ImportController");
 const autoUpdateController = require("../controller/AutoUpdateController");
+const fitgirlCtrl = require("../controller/fitgirlImport");
 
 const Router = express.Router();
 
@@ -42,5 +43,10 @@ Router.post("/autoupdate/start",   autoUpdateController.StartAutoUpdate);
 Router.post("/autoupdate/stop",    autoUpdateController.StopAutoUpdate);
 Router.get("/autoupdate/status",   autoUpdateController.AutoUpdateStatus);
 Router.post("/autoupdate/preview", autoUpdateController.AutoUpdatePreview);
+
+Router.post("/import/fitgirl/start",  fitgirlCtrl.StartFitgirlImport);
+Router.post("/import/fitgirl/stop",   fitgirlCtrl.StopFitgirlImport);
+Router.get ("/import/fitgirl/status", fitgirlCtrl.FitgirlImportStatus);
+Router.post("/import/fitgirl/reset",  fitgirlCtrl.ResetFitgirlImport);
 
 module.exports = Router;

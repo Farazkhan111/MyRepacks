@@ -4,9 +4,10 @@ require("dotenv").config();
 const axios   = require("axios");
 const cheerio = require("cheerio");
 
-const IGDB_CLIENT_ID = process.env.IGDB_CLIENT_ID;
-const IGDB_SECRET    = process.env.IGDB_CLIENT_SECRET;
-const YT_API_KEY     = process.env.YOUTUBE_API_KEY;
+const IGDB_CLIENT_ID   = process.env.IGDB_CLIENT_ID;
+const IGDB_SECRET      = process.env.IGDB_CLIENT_SECRET;
+const YT_API_KEY       = process.env.YOUTUBE_API_KEY;
+const STEAMGRIDDB_KEY  = process.env.STEAMGRIDDB_API_KEY;
 
 // ── Headers ───────────────────────────────────────────────────────
 const BROWSER_HEADERS = {
@@ -42,89 +43,61 @@ async function getIGDBToken() {
 
 // ─────────────────────────────────────────────────────────────────
 // ── Smart name variant builder ───────────────────────────────────
-//
-// Given a raw game name (e.g. "FIFA 23 (2022) Ultimate Edition" or
-// "Call of Duty Modern Warfare 2 (2022) Remastered [PC] v2.1"),
-// returns an ordered array of search strings to try, from most
-// specific to most general:
-//
-//  [1] Full original name (with year, edition, version, etc.)
-//  [2] Everything before the first " - " / " – " dash separator
-//  [3] Noise-stripped full name  (year/version/edition words removed)
-//  [4] Noise-stripped pre-dash name
-//  [5] First 3 words of the cleanest name  (only for long names)
-//  [6] First 2 words of the cleanest name  (only for long names)
-//
-// Duplicates and results with stop-word endings are filtered out.
-// Each variant is tried in order; the first one that returns a link wins.
 // ─────────────────────────────────────────────────────────────────
 function buildSearchVariants(rawName) {
   const variants = [];
   const seen     = new Set();
 
-  // Add a candidate — deduplicates, validates, strips edge junk
   function add(name) {
     if (!name) return;
     let clean = name.trim()
       .replace(/\s{2,}/g, " ")
       .replace(/^[\s\-–—:,.|]+|[\s\-–—:,.|]+$/g, "")
       .trim();
-    // Reject: too short, no real word letters, or already seen
     if (clean.length < 3 || !/[a-zA-Z]{2,}/.test(clean) || seen.has(clean.toLowerCase())) return;
     seen.add(clean.toLowerCase());
     variants.push(clean);
   }
 
-  // Patterns that represent noise (NOT the core game title):
-  //   years in parens/brackets, bare years, version strings, edition
-  //   words, platform tags, DLC markers, anything in brackets/parens
   const NOISE = [
-    /\(\s*\d{4}\s*\)/gi,                 // (2013) (2022)
-    /\[\s*\d{4}\s*\]/gi,                 // [2013]
-    /\b(19[7-9]\d|20\d{2})\b/g,          // bare year: 2013, 1998
-    /\bv\s*\d[\d.a-z]*/gi,              // v1.0  v2.3b  v 1.5
+    /\(\s*\d{4}\s*\)/gi,
+    /\[\s*\d{4}\s*\]/gi,
+    /\b(19[7-9]\d|20\d{2})\b/g,
+    /\bv\s*\d[\d.a-z]*/gi,
     /\b(build|update|patch|hotfix)\s*[\d.]+/gi,
     /\b(repack(ed)?|remastered|remake|definitive|complete|ultimate|gold|goty|deluxe|premium|anniversary|enhanced|extended|legendary|platinum|royal)\b/gi,
     /\bdirector[''']?s\s*cut\b/gi,
     /\bgame\s*of\s*the\s*year\b/gi,
     /\b(edition|collection|bundle|pack|season(\s+update)?)\b/gi,
     /\b(pc|mobile|android|ios|multi\s*\d*|x64|x86|64.?bit|32.?bit)\b/gi,
-    /\b\d+(\.\d+)+[a-z]?\b/g,            // 1.2.3  1.04.00
+    /\b\d+(\.\d+)+[a-z]?\b/g,
     /[+&]\s*(all\s*)?(dlc|update|patch)s?/gi,
-    /\[[^\]]*\]/g,                        // [anything in brackets]
-    /\([^)]*\)/g,                         // (anything in parens)
+    /\[[^\]]*\]/g,
+    /\([^)]*\)/g,
   ];
 
   function stripNoise(name) {
     let s = name;
     for (const rx of NOISE) s = s.replace(rx, " ");
-    // After removing tokens, collapse stray dashes and extra spaces
     s = s.replace(/\s+-\s+/g, " ").replace(/\s{2,}/g, " ").trim();
     s = s.replace(/^[\-–—:,.|]+|[\-–—:,.|]+$/g, "").trim();
     return s;
   }
 
-  // ── 1. Full original name ────────────────────────────────────────
   add(rawName);
 
-  // ── 2. Before first dash separator " - " ────────────────────────
   const dashMatch = rawName.match(/ [-–—] /);
   const beforeDash = dashMatch
     ? rawName.slice(0, rawName.indexOf(dashMatch[0])).trim()
     : rawName;
   if (beforeDash !== rawName) add(beforeDash);
 
-  // ── 3. Noise-stripped versions ───────────────────────────────────
   const cleanFull  = stripNoise(rawName);
   const cleanShort = stripNoise(beforeDash);
 
   add(cleanFull);
   if (cleanShort !== cleanFull) add(cleanShort);
 
-  // ── 4. First 2-3 words of the cleanest short name ───────────────
-  // Only for names that are long enough (4+ words).
-  // Skip truncations whose last word is a stop word (avoids "Need for",
-  // "Call of", "Game of", etc.)
   const STOP_WORDS = new Set([
     "the","a","an","of","in","on","at","for","to","and","or","by","with","from","into"
   ]);
@@ -148,6 +121,395 @@ function buildSearchVariants(rawName) {
   }
 
   return variants;
+}
+
+// ═════════════════════════════════════════════════════════════════
+// ── STEAMGRIDDB — PRIMARY COVER ART SOURCE ───────────────────────
+//
+//  SteamGridDB is the FIRST and most aggressively tried source.
+//  We attempt every name variant and multiple image types:
+//    1. Hero images  (1920×620 wide banner — most have game logo)
+//    2. Grid images  (600×900 portrait OR 920×430 landscape cover art)
+//    3. Logo images  (transparent PNG logos for overlay use)
+//
+//  We only fall through to Steam/IGDB/RAWG if ALL variants fail.
+// ═════════════════════════════════════════════════════════════════
+
+/**
+ * searchSteamGridDB(name)
+ * Returns the best matching SGDB game object { id, name } or null.
+ * Tries exact match first, then falls back to first result.
+ */
+async function searchSteamGridDB(name) {
+  if (!STEAMGRIDDB_KEY) return null;
+
+  const headers = { Authorization: `Bearer ${STEAMGRIDDB_KEY}` };
+
+  try {
+    const res = await axios.get(
+      `https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(name)}`,
+      { headers, timeout: 10000 }
+    );
+    const results = res.data?.data || [];
+    if (!results.length) return null;
+
+    const lower = name.toLowerCase();
+    return results.find(g => g.name?.toLowerCase() === lower) || results[0];
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * fetchSteamGridDBImages(gameId, gameName)
+ *
+ * Given an SGDB game ID, fetches:
+ *   - heroImage:  best hero banner (1920×620, prefers white_logo style)
+ *   - coverImage: best grid image  (portrait 600×900 or landscape 920×430)
+ *   - logoUrl:    transparent PNG logo (bonus, for overlays)
+ *
+ * Returns { heroImage, coverImage, logoUrl } with at least one populated,
+ * or null if nothing was found.
+ */
+async function fetchSteamGridDBImages(gameId, gameName) {
+  if (!STEAMGRIDDB_KEY || !gameId) return null;
+
+  const headers = { Authorization: `Bearer ${STEAMGRIDDB_KEY}` };
+  let heroImage  = null;
+  let coverImage = null;
+  let logoUrl    = null;
+
+  // ── Hero images ───────────────────────────────────────────────
+  // Wide landscape banners (1920×620 or 3840×1240).
+  // "white_logo" style = banner WITH the game name/logo overlaid (ideal).
+  try {
+    const heroRes = await axios.get(
+      `https://www.steamgriddb.com/api/v2/heroes/game/${gameId}`,
+      {
+        headers,
+        params: {
+          styles:     "alternate,blurred,white_logo,material",
+          dimensions: "1920x620,3840x1240,1600x650",
+          mimes:      "image/jpeg,image/png,image/webp",
+          types:      "static",
+          nsfw:       "false",
+          humor:      "false",
+          limit:      20,
+        },
+        timeout: 10000,
+      }
+    );
+
+    const heroes = heroRes.data?.data || [];
+    if (heroes.length) {
+      // Priority: white_logo (has game name) > highest score > first result
+      const withLogo = heroes.find(h => h.style === "white_logo");
+      const topScore = heroes.reduce((best, h) => (!best || h.score > best.score) ? h : best, null);
+      heroImage = (withLogo || topScore || heroes[0])?.url || null;
+    }
+  } catch (_) {}
+
+  // ── Grid images ───────────────────────────────────────────────
+  // Portrait (600×900) = tall cover art — most common for games.
+  // Landscape (920×430 or 460×215) = horizontal box art / store header style.
+  try {
+    const gridRes = await axios.get(
+      `https://www.steamgriddb.com/api/v2/grids/game/${gameId}`,
+      {
+        headers,
+        params: {
+          styles:     "alternate,white_logo,material,no_logo",
+          dimensions: "600x900,920x430,460x215,342x482",
+          mimes:      "image/jpeg,image/png,image/webp",
+          types:      "static",
+          nsfw:       "false",
+          humor:      "false",
+          limit:      20,
+        },
+        timeout: 10000,
+      }
+    );
+
+    const grids = gridRes.data?.data || [];
+    if (grids.length) {
+      // Prefer portrait (600×900) as cover — it's the standard game cover format
+      const portrait   = grids.find(g => g.height > g.width);
+      const landscape  = grids.find(g => g.width > g.height);
+      const topScore   = grids.reduce((best, g) => (!best || g.score > best.score) ? g : best, null);
+      coverImage = (portrait || landscape || topScore || grids[0])?.url || null;
+    }
+  } catch (_) {}
+
+  // ── Logo images ───────────────────────────────────────────────
+  // Transparent PNG logos — useful for hero overlays.
+  // Optional; only fetched if hero/cover were found (bonus data).
+  if (heroImage || coverImage) {
+    try {
+      const logoRes = await axios.get(
+        `https://www.steamgriddb.com/api/v2/logos/game/${gameId}`,
+        {
+          headers,
+          params: {
+            styles: "official,white,black",
+            mimes:  "image/png",
+            types:  "static",
+            nsfw:   "false",
+            humor:  "false",
+            limit:  5,
+          },
+          timeout: 8000,
+        }
+      );
+      const logos = logoRes.data?.data || [];
+      if (logos.length) {
+        logoUrl = logos[0]?.url || null;
+      }
+    } catch (_) {}
+  }
+
+  if (!heroImage && !coverImage) return null;
+
+  console.log(
+    `[SteamGridDB] ✅ Images found for "${gameName}"` +
+    ` | hero: ${heroImage ? "✅" : "❌"} | cover: ${coverImage ? "✅" : "❌"} | logo: ${logoUrl ? "✅" : "❌"}`
+  );
+
+  return {
+    heroImage:  heroImage  || coverImage,
+    coverImage: coverImage || heroImage,
+    logoUrl,
+    source: "steamgriddb",
+  };
+}
+
+/**
+ * fetchSteamGridDBBanner(gameName)
+ *
+ * PUBLIC entry point for SteamGridDB.
+ * Tries ALL name variants to maximise the chance of finding images.
+ * This is called first in fetchBannerCoverArt before any other source.
+ *
+ * Returns: { heroImage, coverImage, logoUrl, screenshots: [], source, matchedName } or null
+ */
+async function fetchSteamGridDBBanner(gameName) {
+  if (!STEAMGRIDDB_KEY) {
+    console.warn("[SteamGridDB] ⚠️  STEAMGRIDDB_API_KEY is not set — skipping SteamGridDB lookup");
+    return null;
+  }
+
+  const variants = buildSearchVariants(gameName);
+
+  for (const name of variants) {
+    try {
+      const game = await searchSteamGridDB(name);
+      if (!game?.id) continue;
+
+      const images = await fetchSteamGridDBImages(game.id, name);
+      if (!images) continue;
+
+      return {
+        heroImage:   images.heroImage,
+        coverImage:  images.coverImage,
+        logoUrl:     images.logoUrl || null,
+        screenshots: [],
+        source:      "steamgriddb",
+        matchedName: game.name,
+        sgdbId:      game.id,
+      };
+    } catch (e) {
+      if (e.response?.status !== 404) {
+        console.warn(`[SteamGridDB] Fetch failed for variant "${name}": ${e.message}`);
+      }
+    }
+  }
+
+  console.log(`[SteamGridDB] ❌ No images found for "${gameName}" after trying ${variants.length} variant(s)`);
+  return null;
+}
+
+// ═════════════════════════════════════════════════════════════════
+// ── STEAM STORE — SECONDARY SOURCE ───────────────────────────────
+//
+//  Steam's header.jpg always contains the game name/logo.
+//  Used only if SteamGridDB returns nothing.
+// ═════════════════════════════════════════════════════════════════
+
+/**
+ * fetchSteamStoreBanner(gameName)
+ * Returns: { heroImage, coverImage, screenshots: [], appId, source, matchedName } or null
+ */
+async function fetchSteamStoreBanner(gameName) {
+  const variants = buildSearchVariants(gameName);
+
+  for (const name of variants) {
+    try {
+      const searchRes = await axios.get(
+        `https://store.steampowered.com/api/storesearch/`,
+        {
+          params: { term: name, l: "english", cc: "US" },
+          headers: BROWSER_HEADERS,
+          timeout: 10000,
+        }
+      );
+
+      const items = searchRes.data?.items || [];
+      if (!items.length) continue;
+
+      const lower = name.toLowerCase();
+      const best  = items.find(i => i.name?.toLowerCase() === lower) || items[0];
+      if (!best?.id) continue;
+
+      const appId       = best.id;
+      const headerImage = `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`;
+      const libraryHero = `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_hero.jpg`;
+
+      let heroImage = headerImage;
+      try {
+        await axios.head(libraryHero, { timeout: 5000 });
+        heroImage = libraryHero;
+      } catch (_) {}
+
+      console.log(`[Steam] ✅ Found banner for "${gameName}" → matched "${best.name}" (appId: ${appId})`);
+      return {
+        heroImage,
+        coverImage: headerImage,
+        screenshots: [],
+        appId: String(appId),
+        source: "steam",
+        matchedName: best.name,
+      };
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+// ═════════════════════════════════════════════════════════════════
+// ── MASTER COVER ART FETCHER ─────────────────────────────────────
+//
+//  Priority order (SteamGridDB is tried FIRST with ALL variants):
+//
+//    1. SteamGridDB  ← PRIMARY — hero + grid images, all name variants tried
+//    2. Steam Store  ← SECONDARY (PC only) — header.jpg / library_hero.jpg
+//    3. IGDB         ← TERTIARY — artworks + cover at t_1080p
+//    4. RAWG         ← FINAL FALLBACK — background_image
+//
+//  We only advance to the next source if the previous one returns nothing.
+// ═════════════════════════════════════════════════════════════════
+
+async function fetchBannerCoverArt(gameName, platform = "PC") {
+  // ── 1. SteamGridDB (PRIMARY — all variants tried) ─────────────
+  try {
+    const sgdb = await fetchSteamGridDBBanner(gameName);
+    if (sgdb?.heroImage || sgdb?.coverImage) {
+      return {
+        coverImage:  sgdb.coverImage || sgdb.heroImage,
+        heroImage:   sgdb.heroImage  || sgdb.coverImage,
+        logoUrl:     sgdb.logoUrl    || null,
+        screenshots: sgdb.screenshots || [],
+        source:      "steamgriddb",
+        matchedName: sgdb.matchedName || gameName,
+        sgdbId:      sgdb.sgdbId     || null,
+      };
+    }
+  } catch (e) {
+    console.warn(`[fetchBannerCoverArt] SteamGridDB error for "${gameName}": ${e.message}`);
+  }
+
+  // ── 2. Steam Store (SECONDARY — PC only) ──────────────────────
+  if (platform !== "Mobile") {
+    try {
+      const steam = await fetchSteamStoreBanner(gameName);
+      if (steam?.coverImage) {
+        return {
+          coverImage:  steam.coverImage,
+          heroImage:   steam.heroImage || steam.coverImage,
+          logoUrl:     null,
+          screenshots: [],
+          source:      "steam",
+          matchedName: steam.matchedName || gameName,
+          appId:       steam.appId,
+        };
+      }
+    } catch (e) {
+      console.warn(`[fetchBannerCoverArt] Steam error for "${gameName}": ${e.message}`);
+    }
+  }
+
+  // ── 3. IGDB (TERTIARY — artworks + cover) ─────────────────────
+  try {
+    const token    = await getIGDBToken();
+    const variants = buildSearchVariants(gameName);
+
+    for (const name of variants.slice(0, 3)) {
+      try {
+        const res = await axios.post(
+          "https://api.igdb.com/v4/games",
+          `fields name,cover.url,artworks.url,screenshots.url;
+           search "${name.replace(/"/g, "")}";
+           limit 5;`,
+          {
+            headers: {
+              "Client-ID":    IGDB_CLIENT_ID,
+              Authorization:  `Bearer ${token}`,
+              "Content-Type": "text/plain",
+            },
+            timeout: 10000,
+          }
+        );
+
+        const results = res.data || [];
+        const game    = results.find(g => g.cover?.url && titleMatches(name, g.name));
+        if (!game) continue;
+
+        const artworks = (game.artworks || [])
+          .map(a => "https:" + a.url.replace(/t_thumb|t_cover_small|t_720p|t_screenshot_med/, "t_1080p"))
+          .filter(Boolean);
+
+        const cover = game.cover?.url
+          ? "https:" + game.cover.url.replace(/t_thumb|t_cover_small|t_cover_big/, "t_1080p")
+          : null;
+
+        const screenshots = (game.screenshots || [])
+          .slice(0, 4)
+          .map(s => "https:" + s.url.replace(/t_thumb|t_screenshot_med/, "t_screenshot_huge"));
+
+        const heroImage  = artworks[0] || cover;
+        const coverImage = cover || artworks[0];
+
+        if (!coverImage) continue;
+
+        console.log(`[IGDB] ✅ Found art for "${gameName}" → matched "${game.name}"`);
+        return {
+          coverImage,
+          heroImage,
+          logoUrl:     null,
+          screenshots,
+          source:      "igdb",
+          matchedName: name,
+          resultTitle: game.name,
+        };
+      } catch (_) {}
+    }
+  } catch (_) {}
+
+  // ── 4. RAWG (FINAL FALLBACK) ───────────────────────────────────
+  try {
+    const rawg = await fetchRAWGData(gameName);
+    if (rawg?.cover) {
+      console.log(`[RAWG] ✅ Fallback image found for "${gameName}"`);
+      return {
+        coverImage:  rawg.cover,
+        heroImage:   rawg.background || rawg.cover,
+        logoUrl:     null,
+        screenshots: rawg.screenshots || [],
+        source:      "rawg",
+        matchedName: gameName,
+      };
+    }
+  } catch (_) {}
+
+  return null;
 }
 
 // ── FitGirl ───────────────────────────────────────────────────────
@@ -190,7 +552,6 @@ async function scrapeFitgirlTorrent(pageUrl) {
   } catch (_) { return null; }
 }
 
-// Tries every name variant in order; returns first link found.
 async function getFitgirlLink(gameName) {
   const variants = buildSearchVariants(gameName);
   for (const name of variants) {
@@ -255,7 +616,6 @@ async function searchApkPure(gameName) {
   return null;
 }
 
-// Tries every name variant in order; returns first link found.
 async function getApkPureLink(gameName) {
   const variants = buildSearchVariants(gameName);
   for (const name of variants) {
@@ -268,14 +628,10 @@ async function getApkPureLink(gameName) {
 }
 
 // ── YouTube Trailer (with gameplay fallback) ───────────────────────
-// 1. Search for official trailer  (tries cleanest name variants)
-// 2. If nothing found, fall back to gameplay video
 async function fetchYouTubeTrailer(gameName, platform) {
   const hint = platform === "Mobile" ? "android mobile" : "PC";
 
-  // Inner helper: search YouTube for a query, return best matching video
   async function searchYouTube(query, preferredKeywords = []) {
-    // Try YouTube Data API first
     if (YT_API_KEY) {
       try {
         const res = await axios.get("https://www.googleapis.com/youtube/v3/search", {
@@ -293,7 +649,6 @@ async function fetchYouTubeTrailer(gameName, platform) {
       } catch (_) {}
     }
 
-    // Fallback: scrape YouTube search page
     try {
       const { data: html } = await axios.get(
         `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,
@@ -304,7 +659,6 @@ async function fetchYouTubeTrailer(gameName, platform) {
         const yt       = JSON.parse(match[1]);
         const contents = yt?.contents?.twoColumnSearchResultsRenderer?.primaryContents
           ?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || [];
-        // First pass: prefer keyword match in title
         for (const item of contents) {
           const vr = item?.videoRenderer;
           if (!vr?.videoId) continue;
@@ -314,7 +668,6 @@ async function fetchYouTubeTrailer(gameName, platform) {
             return { url: `https://www.youtube.com/watch?v=${vid}`, embed: `https://www.youtube.com/embed/${vid}` };
           }
         }
-        // Second pass: return any video
         for (const item of contents) {
           const vr = item?.videoRenderer;
           if (vr?.videoId) {
@@ -328,18 +681,13 @@ async function fetchYouTubeTrailer(gameName, platform) {
     return null;
   }
 
-  // Use the cleanest variant of the name for YouTube (usually the pre-dash, noise-stripped one)
   const ytVariants = buildSearchVariants(gameName);
-  // Best YouTube name = first noise-stripped variant (index 2 or 3 typically),
-  // but at minimum the before-dash version if available
   const ytName = ytVariants[2] || ytVariants[1] || ytVariants[0];
 
-  // ── Step 1: official trailer ─────────────────────────────────────
   const trailerQuery = `${ytName} ${hint} official trailer`;
   const trailer = await searchYouTube(trailerQuery, ["trailer", "official"]);
   if (trailer) return { ...trailer, type: "trailer" };
 
-  // ── Step 2: gameplay fallback ────────────────────────────────────
   const gameplayQuery = `${ytName} ${hint} gameplay`;
   const gameplay = await searchYouTube(gameplayQuery, ["gameplay"]);
   if (gameplay) return { ...gameplay, type: "gameplay" };
@@ -348,9 +696,6 @@ async function fetchYouTubeTrailer(gameName, platform) {
 }
 
 // ── Title match checker ───────────────────────────────────────────
-// Verifies the API result title actually belongs to the game we searched.
-// Both names are stripped to core words (no stop/noise words), then we
-// check that enough words overlap in either direction.
 function titleMatches(searchName, resultName) {
   if (!resultName) return false;
 
@@ -377,14 +722,11 @@ function titleMatches(searchName, resultName) {
   const rw = coreWords(resultName);
   if (!sw.length || !rw.length) return false;
 
-  // Count overlapping words (prefix match handles plurals/slight variations)
   const matched = sw.filter(w => rw.some(r => r === w || r.startsWith(w) || w.startsWith(r))).length;
-
-  // Accept if 60%+ of search words found in result, OR 60%+ of result words found in search
   return (matched / sw.length) >= 0.6 || (matched / rw.length) >= 0.6;
 }
 
-// ── IGDB image search (tries all name variants, verifies title) ───
+// ── IGDB image search (used internally; also exported for direct use) ───
 async function fetchIGDBImages(gameName) {
   const variants = buildSearchVariants(gameName);
   for (const name of variants) {
@@ -405,7 +747,6 @@ async function fetchIGDBImages(gameName) {
         }
       );
       const results = res.data || [];
-      // Find first result that has a cover AND whose title matches what we searched
       const game = results.find(g => g.cover?.url && titleMatches(name, g.name));
       if (!game) continue;
       const cover = "https:" + game.cover.url.replace("t_thumb", "t_1080p");
@@ -418,7 +759,7 @@ async function fetchIGDBImages(gameName) {
   return null;
 }
 
-// ── RAWG image/description search (tries all name variants, verifies title) ──
+// ── RAWG image/description search ──────────────────────────────────
 async function fetchRAWGData(gameName) {
   const RAWG_KEY = process.env.RAWG_API_KEY;
   const variants = buildSearchVariants(gameName);
@@ -429,10 +770,8 @@ async function fetchRAWGData(gameName) {
         timeout: 10000,
       });
       const results = res.data?.results || [];
-      // Find first result that has an image AND whose title matches what we searched
       const game = results.find(g => g.background_image && titleMatches(name, g.name));
       if (!game) continue;
-      // Fetch full detail for description
       let description = "";
       try {
         const detail = await axios.get(`https://api.rawg.io/api/games/${game.id}`, {
@@ -460,5 +799,8 @@ module.exports = {
   fetchYouTubeTrailer,
   fetchIGDBImages,
   fetchRAWGData,
-  buildSearchVariants,  // exported so AutoUpdateController can log the variants
+  fetchBannerCoverArt,        // ← Master cover art fetcher (SteamGridDB first)
+  fetchSteamGridDBBanner,     // ← SteamGridDB hero + grid images (all variants)
+  fetchSteamStoreBanner,      // ← Steam store header / library hero
+  buildSearchVariants,
 };
