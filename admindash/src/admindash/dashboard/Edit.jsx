@@ -109,7 +109,7 @@ export default function Edit() {
               <option value="">Select Category</option>
               {gplatform === "PC" ? (
                 <>
-                  <option>Roleplay</option>
+                  <option>RPG</option>
                   <option>Simulation</option>
                   <option>Sports</option>
                   <option>Action</option>
