@@ -124,22 +124,9 @@ function buildSearchVariants(rawName) {
 }
 
 // ═════════════════════════════════════════════════════════════════
-// ── STEAMGRIDDB — PRIMARY COVER ART SOURCE ───────────────────────
-//
-//  SteamGridDB is the FIRST and most aggressively tried source.
-//  We attempt every name variant and multiple image types:
-//    1. Hero images  (1920×620 wide banner — most have game logo)
-//    2. Grid images  (600×900 portrait OR 920×430 landscape cover art)
-//    3. Logo images  (transparent PNG logos for overlay use)
-//
-//  We only fall through to Steam/IGDB/RAWG if ALL variants fail.
+// ── STEAMGRIDDB — COVER ART SOURCE (PC primary, Mobile tertiary) ─
 // ═════════════════════════════════════════════════════════════════
 
-/**
- * searchSteamGridDB(name)
- * Returns the best matching SGDB game object { id, name } or null.
- * Tries exact match first, then falls back to first result.
- */
 async function searchSteamGridDB(name) {
   if (!STEAMGRIDDB_KEY) return null;
 
@@ -160,17 +147,6 @@ async function searchSteamGridDB(name) {
   }
 }
 
-/**
- * fetchSteamGridDBImages(gameId, gameName)
- *
- * Given an SGDB game ID, fetches:
- *   - heroImage:  best hero banner (1920×620, prefers white_logo style)
- *   - coverImage: best grid image  (portrait 600×900 or landscape 920×430)
- *   - logoUrl:    transparent PNG logo (bonus, for overlays)
- *
- * Returns { heroImage, coverImage, logoUrl } with at least one populated,
- * or null if nothing was found.
- */
 async function fetchSteamGridDBImages(gameId, gameName) {
   if (!STEAMGRIDDB_KEY || !gameId) return null;
 
@@ -179,9 +155,6 @@ async function fetchSteamGridDBImages(gameId, gameName) {
   let coverImage = null;
   let logoUrl    = null;
 
-  // ── Hero images ───────────────────────────────────────────────
-  // Wide landscape banners (1920×620 or 3840×1240).
-  // "white_logo" style = banner WITH the game name/logo overlaid (ideal).
   try {
     const heroRes = await axios.get(
       `https://www.steamgriddb.com/api/v2/heroes/game/${gameId}`,
@@ -202,16 +175,12 @@ async function fetchSteamGridDBImages(gameId, gameName) {
 
     const heroes = heroRes.data?.data || [];
     if (heroes.length) {
-      // Priority: white_logo (has game name) > highest score > first result
       const withLogo = heroes.find(h => h.style === "white_logo");
       const topScore = heroes.reduce((best, h) => (!best || h.score > best.score) ? h : best, null);
       heroImage = (withLogo || topScore || heroes[0])?.url || null;
     }
   } catch (_) {}
 
-  // ── Grid images ───────────────────────────────────────────────
-  // Portrait (600×900) = tall cover art — most common for games.
-  // Landscape (920×430 or 460×215) = horizontal box art / store header style.
   try {
     const gridRes = await axios.get(
       `https://www.steamgriddb.com/api/v2/grids/game/${gameId}`,
@@ -232,7 +201,6 @@ async function fetchSteamGridDBImages(gameId, gameName) {
 
     const grids = gridRes.data?.data || [];
     if (grids.length) {
-      // Prefer portrait (600×900) as cover — it's the standard game cover format
       const portrait   = grids.find(g => g.height > g.width);
       const landscape  = grids.find(g => g.width > g.height);
       const topScore   = grids.reduce((best, g) => (!best || g.score > best.score) ? g : best, null);
@@ -240,9 +208,6 @@ async function fetchSteamGridDBImages(gameId, gameName) {
     }
   } catch (_) {}
 
-  // ── Logo images ───────────────────────────────────────────────
-  // Transparent PNG logos — useful for hero overlays.
-  // Optional; only fetched if hero/cover were found (bonus data).
   if (heroImage || coverImage) {
     try {
       const logoRes = await axios.get(
@@ -282,15 +247,6 @@ async function fetchSteamGridDBImages(gameId, gameName) {
   };
 }
 
-/**
- * fetchSteamGridDBBanner(gameName)
- *
- * PUBLIC entry point for SteamGridDB.
- * Tries ALL name variants to maximise the chance of finding images.
- * This is called first in fetchBannerCoverArt before any other source.
- *
- * Returns: { heroImage, coverImage, logoUrl, screenshots: [], source, matchedName } or null
- */
 async function fetchSteamGridDBBanner(gameName) {
   if (!STEAMGRIDDB_KEY) {
     console.warn("[SteamGridDB] ⚠️  STEAMGRIDDB_API_KEY is not set — skipping SteamGridDB lookup");
@@ -328,16 +284,9 @@ async function fetchSteamGridDBBanner(gameName) {
 }
 
 // ═════════════════════════════════════════════════════════════════
-// ── STEAM STORE — SECONDARY SOURCE ───────────────────────────────
-//
-//  Steam's header.jpg always contains the game name/logo.
-//  Used only if SteamGridDB returns nothing.
+// ── STEAM STORE — SECONDARY SOURCE (PC only) ─────────────────────
 // ═════════════════════════════════════════════════════════════════
 
-/**
- * fetchSteamStoreBanner(gameName)
- * Returns: { heroImage, coverImage, screenshots: [], appId, source, matchedName } or null
- */
 async function fetchSteamStoreBanner(gameName) {
   const variants = buildSearchVariants(gameName);
 
@@ -387,18 +336,97 @@ async function fetchSteamStoreBanner(gameName) {
 // ═════════════════════════════════════════════════════════════════
 // ── MASTER COVER ART FETCHER ─────────────────────────────────────
 //
-//  Priority order (SteamGridDB is tried FIRST with ALL variants):
+//  Priority order differs by platform:
 //
-//    1. SteamGridDB  ← PRIMARY — hero + grid images, all name variants tried
-//    2. Steam Store  ← SECONDARY (PC only) — header.jpg / library_hero.jpg
-//    3. IGDB         ← TERTIARY — artworks + cover at t_1080p
-//    4. RAWG         ← FINAL FALLBACK — background_image
+//  PC games:
+//    1. SteamGridDB  ← PRIMARY
+//    2. Steam Store  ← SECONDARY
+//    3. IGDB         ← TERTIARY
+//    4. RAWG         ← FINAL FALLBACK
 //
-//  We only advance to the next source if the previous one returns nothing.
+//  Mobile games:
+//    1. IGDB         ← PRIMARY  (most accurate art for known mobile titles)
+//    2. SteamGridDB  ← SECONDARY (many mobile games listed here too)
+//    3. RAWG         ← FINAL FALLBACK
+//    NOTE: Steam Store is skipped entirely for Mobile.
+//
+//  The PlayStoreImportController passes its own validated Play Store
+//  images directly into the DB without calling this function.
+//  This function is the fallback called ONLY when Play Store images
+//  fail the reachability check.
 // ═════════════════════════════════════════════════════════════════
 
 async function fetchBannerCoverArt(gameName, platform = "PC") {
-  // ── 1. SteamGridDB (PRIMARY — all variants tried) ─────────────
+  const isMobile = platform === "Mobile";
+
+  if (isMobile) {
+    // ════════════════════════════════════════════════════════════
+    // MOBILE IMAGE PRIORITY
+    // ════════════════════════════════════════════════════════════
+
+    // ── 1. IGDB (PRIMARY for Mobile) ────────────────────────────
+    // Many popular mobile games (PUBG Mobile, COD Mobile, Clash of Clans,
+    // Among Us, etc.) have IGDB entries with high-quality cover art.
+    try {
+      const igdbResult = await fetchIGDBImages(gameName);
+      if (igdbResult?.cover) {
+        console.log(`[IGDB] ✅ Mobile cover found for "${gameName}"`);
+        return {
+          coverImage:  igdbResult.cover,
+          heroImage:   igdbResult.cover,
+          logoUrl:     null,
+          screenshots: igdbResult.screenshots || [],
+          source:      "igdb",
+          matchedName: igdbResult.matchedName || gameName,
+          resultTitle: igdbResult.resultTitle,
+        };
+      }
+    } catch (e) {
+      console.warn(`[fetchBannerCoverArt] IGDB error for mobile "${gameName}": ${e.message}`);
+    }
+
+    // ── 2. SteamGridDB (SECONDARY for Mobile) ───────────────────
+    try {
+      const sgdb = await fetchSteamGridDBBanner(gameName);
+      if (sgdb?.heroImage || sgdb?.coverImage) {
+        return {
+          coverImage:  sgdb.coverImage || sgdb.heroImage,
+          heroImage:   sgdb.heroImage  || sgdb.coverImage,
+          logoUrl:     sgdb.logoUrl    || null,
+          screenshots: sgdb.screenshots || [],
+          source:      "steamgriddb",
+          matchedName: sgdb.matchedName || gameName,
+          sgdbId:      sgdb.sgdbId     || null,
+        };
+      }
+    } catch (e) {
+      console.warn(`[fetchBannerCoverArt] SteamGridDB error for mobile "${gameName}": ${e.message}`);
+    }
+
+    // ── 3. RAWG (FINAL FALLBACK for Mobile) ─────────────────────
+    try {
+      const rawg = await fetchRAWGData(gameName);
+      if (rawg?.cover) {
+        console.log(`[RAWG] ✅ Mobile fallback image for "${gameName}"`);
+        return {
+          coverImage:  rawg.cover,
+          heroImage:   rawg.background || rawg.cover,
+          logoUrl:     null,
+          screenshots: rawg.screenshots || [],
+          source:      "rawg",
+          matchedName: gameName,
+        };
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // PC IMAGE PRIORITY (unchanged)
+  // ════════════════════════════════════════════════════════════════
+
+  // ── 1. SteamGridDB (PRIMARY for PC) ───────────────────────────
   try {
     const sgdb = await fetchSteamGridDBBanner(gameName);
     if (sgdb?.heroImage || sgdb?.coverImage) {
@@ -416,27 +444,25 @@ async function fetchBannerCoverArt(gameName, platform = "PC") {
     console.warn(`[fetchBannerCoverArt] SteamGridDB error for "${gameName}": ${e.message}`);
   }
 
-  // ── 2. Steam Store (SECONDARY — PC only) ──────────────────────
-  if (platform !== "Mobile") {
-    try {
-      const steam = await fetchSteamStoreBanner(gameName);
-      if (steam?.coverImage) {
-        return {
-          coverImage:  steam.coverImage,
-          heroImage:   steam.heroImage || steam.coverImage,
-          logoUrl:     null,
-          screenshots: [],
-          source:      "steam",
-          matchedName: steam.matchedName || gameName,
-          appId:       steam.appId,
-        };
-      }
-    } catch (e) {
-      console.warn(`[fetchBannerCoverArt] Steam error for "${gameName}": ${e.message}`);
+  // ── 2. Steam Store (SECONDARY for PC) ─────────────────────────
+  try {
+    const steam = await fetchSteamStoreBanner(gameName);
+    if (steam?.coverImage) {
+      return {
+        coverImage:  steam.coverImage,
+        heroImage:   steam.heroImage || steam.coverImage,
+        logoUrl:     null,
+        screenshots: [],
+        source:      "steam",
+        matchedName: steam.matchedName || gameName,
+        appId:       steam.appId,
+      };
     }
+  } catch (e) {
+    console.warn(`[fetchBannerCoverArt] Steam error for "${gameName}": ${e.message}`);
   }
 
-  // ── 3. IGDB (TERTIARY — artworks + cover) ─────────────────────
+  // ── 3. IGDB (TERTIARY for PC) ─────────────────────────────────
   try {
     const token    = await getIGDBToken();
     const variants = buildSearchVariants(gameName);
@@ -493,7 +519,7 @@ async function fetchBannerCoverArt(gameName, platform = "PC") {
     }
   } catch (_) {}
 
-  // ── 4. RAWG (FINAL FALLBACK) ───────────────────────────────────
+  // ── 4. RAWG (FINAL FALLBACK for PC) ───────────────────────────
   try {
     const rawg = await fetchRAWGData(gameName);
     if (rawg?.cover) {
@@ -726,7 +752,7 @@ function titleMatches(searchName, resultName) {
   return (matched / sw.length) >= 0.6 || (matched / rw.length) >= 0.6;
 }
 
-// ── IGDB image search (used internally; also exported for direct use) ───
+// ── IGDB image search ─────────────────────────────────────────────
 async function fetchIGDBImages(gameName) {
   const variants = buildSearchVariants(gameName);
   for (const name of variants) {
@@ -799,8 +825,8 @@ module.exports = {
   fetchYouTubeTrailer,
   fetchIGDBImages,
   fetchRAWGData,
-  fetchBannerCoverArt,        // ← Master cover art fetcher (SteamGridDB first)
-  fetchSteamGridDBBanner,     // ← SteamGridDB hero + grid images (all variants)
+  fetchBannerCoverArt,        // ← Master cover art fetcher
+  fetchSteamGridDBBanner,     // ← SteamGridDB hero + grid images
   fetchSteamStoreBanner,      // ← Steam store header / library hero
   buildSearchVariants,
 };

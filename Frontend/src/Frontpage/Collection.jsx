@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import url from './url'
 
 /* ── Extract YouTube video ID from any YT URL format ── */
@@ -132,10 +132,13 @@ function GameCard({ game, index, onClick }) {
 /* ── Main Collection page ── */
 export default function Collection() {
   const [allgames,  setGames]    = useState([])
-  const [platform,  setPlatform] = useState('PC')
   const [category,  setCategory] = useState('All')
   const [loading,   setLoading]  = useState(true)
   const nav = useNavigate()
+
+  // ── Read platform from router state (set by Navbar links) ──
+  const { state } = useLocation()
+  const [platform, setPlatform] = useState(state?.platform || 'PC')
 
   useEffect(() => {
     axios.get(url + '/collection').then((res) => {
@@ -143,6 +146,14 @@ export default function Collection() {
       setLoading(false)
     })
   }, [])
+
+  // ── Sync platform if user navigates from navbar while already on this page ──
+  useEffect(() => {
+    if (state?.platform) {
+      setPlatform(state.platform)
+      setCategory('All')
+    }
+  }, [state])
 
   function switchPlatform(p) {
     setPlatform(p)

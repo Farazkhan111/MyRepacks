@@ -2,13 +2,13 @@ const mongoose = require("mongoose");
 
 const allgameSchema = mongoose.Schema({
   name:           String,
-  image:          String,
+  image:          String, // icon image
   description:    String,
   category:       String,
   platform:       { type: String, enum: ["PC", "Mobile"], default: "PC" },
   trending:       String,
   link:           String,
-  fimage:         String,
+  fimage:         String, // cover image
   video:          String,
   othername:      [String],
 

@@ -3,7 +3,9 @@ const gameController       = require("../controller/Gamecontroller");
 const scraperController    = require("../controller/ScraperController");
 const importController     = require("../controller/ImportController");
 const autoUpdateController = require("../controller/AutoUpdateController");
-const fitgirlCtrl = require("../controller/fitgirlImport");
+const fitgirlCtrl    = require("../controller/fitgirlImport");
+const playStoreCtrl  = require("../controller/PlayStoreController");
+
 
 const Router = express.Router();
 
@@ -48,5 +50,13 @@ Router.post("/import/fitgirl/start",  fitgirlCtrl.StartFitgirlImport);
 Router.post("/import/fitgirl/stop",   fitgirlCtrl.StopFitgirlImport);
 Router.get ("/import/fitgirl/status", fitgirlCtrl.FitgirlImportStatus);
 Router.post("/import/fitgirl/reset",  fitgirlCtrl.ResetFitgirlImport);
+
+// ── Play Store Import ─────────────────────────────────────────────
+Router.post("/import/playstore/start",  playStoreCtrl.StartPlayStoreImport);
+Router.post("/import/playstore/stop",   playStoreCtrl.StopPlayStoreImport);
+Router.get ("/import/playstore/status", playStoreCtrl.PlayStoreImportStatus);
+Router.post("/import/playstore/reset",  playStoreCtrl.ResetPlayStoreImport);
+
+
 
 module.exports = Router;

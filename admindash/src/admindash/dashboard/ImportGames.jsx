@@ -20,8 +20,9 @@ function logIcon(type) {
 
 // ── Source tabs ──────────────────────────────────────────────────
 const SOURCES = [
-  { id: "rawg_igdb", label: "🌐 RAWG + IGDB",   desc: "PC games via RAWG, Mobile via IGDB" },
-  { id: "fitgirl",   label: "🏴‍☠️ FitGirl Repacks", desc: "Scrape directly from fitgirl-repacks.site" },
+  { id: "rawg_igdb",   label: "🌐 RAWG + IGDB",      desc: "PC games via RAWG, Mobile via IGDB" },
+  { id: "fitgirl",     label: "🏴‍☠️ FitGirl Repacks",  desc: "Scrape directly from fitgirl-repacks.site" },
+  { id: "playstore",   label: "📱 Play Store",        desc: "Import any Android game by Play Store URL" },
 ];
 
 // ── Platform sub-tabs (only for rawg_igdb source) ────────────────
@@ -489,6 +490,197 @@ function FitgirlPanel() {
 }
 
 // ════════════════════════════════════════════════════════════════
+//  PLAY STORE PANEL  — auto-import loop (same as RAWG / FitGirl)
+// ════════════════════════════════════════════════════════════════
+function PlayStorePanel() {
+  const [status,  setStatus]  = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [flash,   setFlash]   = useState(false);
+
+  const pollRef    = useRef(null);
+  const logRef     = useRef(null);
+  const autoScroll = useRef(true);
+
+  const fetchStatus = () => {
+    axios.get(API + "/import/playstore/status")
+      .then(res => {
+        setStatus(prev => {
+          const next = res.data;
+          if (prev && next.totalImported > (prev.totalImported || 0)) {
+            setFlash(true);
+            setTimeout(() => setFlash(false), 600);
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => { fetchStatus(); }, []);
+
+  useEffect(() => {
+    if (status?.isRunning) {
+      pollRef.current = setInterval(fetchStatus, 2000);
+    } else {
+      clearInterval(pollRef.current);
+    }
+    return () => clearInterval(pollRef.current);
+  }, [status?.isRunning]);
+
+  useEffect(() => {
+    if (autoScroll.current && logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [status?.log]);
+
+  const handleStart = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.post(API + "/import/playstore/start");
+      setMessage(res.data.message || "Play Store import started");
+      setTimeout(fetchStatus, 500);
+    } catch (err) {
+      setMessage("Error: " + (err.response?.data?.message || err.message));
+    }
+    setLoading(false);
+  };
+
+  const handleStop = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.post(API + "/import/playstore/stop");
+      setMessage(res.data.message || "Stop requested");
+      setTimeout(fetchStatus, 1000);
+    } catch (err) {
+      setMessage("Error: " + err.message);
+    }
+    setLoading(false);
+  };
+
+  const handleReset = async () => {
+    if (!window.confirm("Reset Play Store import progress to page 1?")) return;
+    setLoading(true);
+    try {
+      const res = await axios.post(API + "/import/playstore/reset");
+      setMessage(res.data.message);
+      fetchStatus();
+    } catch (err) {
+      setMessage("Error: " + err.message);
+    }
+    setLoading(false);
+  };
+
+  const isRunning = status?.isRunning;
+  const log       = status?.log || [];
+  const cur       = status?.currentGame;
+  const hasGame   = cur?.name;
+
+  return (
+    <>
+      {/* Banner */}
+      <div className="fitgirl-banner" style={{ borderLeft: "4px solid #3ddc84" }}>
+        <div className="fitgirl-banner-icon">📱</div>
+        <div>
+          <div className="fitgirl-banner-title">Play Store Auto-Import</div>
+          <div className="fitgirl-banner-sub">
+            Scrapes <strong>Google Play Store</strong> top-charts page by page —
+            fetches game name, description, icon, and screenshots automatically.
+            Download links come from <strong>APKPure XAPK</strong> (one-click).
+          </div>
+        </div>
+      </div>
+
+      {/* Status card */}
+      <div className="import-status-card">
+        <div className={`status-indicator ${isRunning ? "running" : "stopped"}`}>
+          <span className="status-dot"></span>
+          {isRunning ? "🟢 Running" : "🔴 Stopped"}
+        </div>
+
+        {status && (
+          <div className="import-stats">
+            <StatBox label="Games Imported" value={status.totalImported ?? 0} flash={flash} />
+            <StatBox label="Current Page"   value={status.lastPage ?? 1} />
+            <StatBox label="Source"          value="Play Store" />
+            <StatBox
+              label="Last Update"
+              value={<span style={{ fontSize: 12 }}>{fmtTime(status.updatedAt)}</span>}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Current game being processed */}
+      {isRunning && (
+        <div className="import-current-game">
+          {hasGame ? (
+            <>
+              <div className="cg-platform-badge" data-platform="Mobile">📱 Mobile</div>
+              <div className="cg-info">
+                <span className="cg-title">{cur.name}</span>
+                <span className="cg-step"><span className="cg-spinner"></span>{cur.step}…</span>
+              </div>
+            </>
+          ) : (
+            <div className="cg-info">
+              <span className="cg-step"><span className="cg-spinner"></span>Scraping next chart page…</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="import-actions">
+        {!isRunning ? (
+          <button className="import-start-btn fitgirl-start" style={{ background: "#3ddc84", color: "#000" }} onClick={handleStart} disabled={loading}>
+            {loading ? "Starting…" : "📱 Start Play Store Import"}
+          </button>
+        ) : (
+          <button className="import-stop-btn" onClick={handleStop} disabled={loading}>
+            {loading ? "Stopping…" : "⏹ Stop Import"}
+          </button>
+        )}
+        {!isRunning && (
+          <button className="import-reset-btn" onClick={handleReset} disabled={loading} title="Reset progress to page 1">
+            🔄 Reset Progress
+          </button>
+        )}
+      </div>
+
+      {/* Message */}
+      {message && (
+        <div className="import-message">
+          {message}
+          <button onClick={() => setMessage("")} style={{ marginLeft: 12, background: "none", border: "none", color: "#aaa", cursor: "pointer" }}>✕</button>
+        </div>
+      )}
+
+      {/* Log */}
+      <LogPanel
+        log={log}
+        isRunning={isRunning}
+        logRef={logRef}
+        onScrollChange={v => { autoScroll.current = v; }}
+      />
+
+      {/* Info */}
+      <div className="import-info-box fitgirl-info-box">
+        <h4>📱 How Play Store Import works</h4>
+        <ul>
+          <li>Scrapes <strong>Google Play Store</strong> top-charts page by page (24 games per page)</li>
+          <li>Fetches each game's <strong>name, description, icon, and screenshots</strong> from its Play Store page</li>
+          <li>📥 Automatically builds <strong>APKPure XAPK one-click download links</strong> for every game</li>
+          <li>Platform set to <strong>Mobile</strong> · category auto-mapped from Play Store genre</li>
+          <li>Skips duplicates — safe to run alongside the RAWG/IGDB Mobile import</li>
+          <li>Click <strong>Stop</strong> any time — click <strong>Start</strong> again to resume from where it left off</li>
+        </ul>
+      </div>
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ════════════════════════════════════════════════════════════════
 export default function ImportGames() {
@@ -520,8 +712,9 @@ export default function ImportGames() {
           </div>
 
           {/* Panel */}
-          {activeSource === "rawg_igdb" && <RawgIgdbPanel />}
-          {activeSource === "fitgirl"   && <FitgirlPanel />}
+          {activeSource === "rawg_igdb"  && <RawgIgdbPanel />}
+          {activeSource === "fitgirl"    && <FitgirlPanel />}
+          {activeSource === "playstore"  && <PlayStorePanel />}
 
         </div>
       </div>
