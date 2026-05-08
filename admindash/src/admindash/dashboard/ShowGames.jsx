@@ -20,7 +20,7 @@ export default function ShowGames() {
   }, []);
 
   const toggleTrending = (id, current) => {
-    if (current === "Not Trending" && trendingCount >= 8) { alert("Max 8 trending allowed"); return; }
+    if (current === "Not Trending" && trendingCount >= 16) { alert("Max 8 trending allowed"); return; }
     const newStatus = current === "Trending" ? "Not Trending" : "Trending";
     setTrendingCount(prev => current === "Trending" ? prev - 1 : prev + 1);
     axios.post(url + "/tupdate", { i: id, trending: newStatus });
