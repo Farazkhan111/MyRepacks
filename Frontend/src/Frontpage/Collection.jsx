@@ -221,16 +221,17 @@ export default function Collection() {
 
       <div className="collection-filter-bar">
         <div className="collection-filter-inner">
-          {cats.map((cat) => (
-            <button
-              key={cat}
-              className={`filter-btn ${category === cat ? 'active' : ''}`}
-              onClick={() => setCategory(cat)}
-            >
-              {cat === 'All' ? (platform === 'Mobile' ? 'All Mobile' : 'All PC') : cat}
-              {category === cat && <span className="filter-btn-dot" />}
-            </button>
-          ))}
+          <select
+            className="filter-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            {cats.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat === 'All' ? (platform === 'Mobile' ? 'All Mobile' : 'All PC') : cat}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
