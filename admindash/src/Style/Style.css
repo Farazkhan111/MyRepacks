@@ -2414,3 +2414,661 @@ textarea {
     gap: 10px;
   }
 }
+
+/* ── ShowGames: Search + Controls row ───────────────────────── */
+.games-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.games-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 7px 14px;
+  flex: 1;
+  min-width: 200px;
+  transition: border-color 0.2s;
+}
+.games-search-wrap:focus-within {
+  border-color: rgba(0,198,255,0.5);
+  background: rgba(0,198,255,0.05);
+}
+
+.games-search-icon {
+  font-size: 14px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.games-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 14px;
+}
+.games-search-input::placeholder { color: rgba(255,255,255,0.35); }
+
+.games-search-clear {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.games-search-clear:hover { color: #fff; }
+
+/* Results count line */
+.games-search-results {
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+  margin: -10px 0 14px;
+}
+
+/* Empty state row */
+.games-empty {
+  text-align: center;
+  padding: 40px 20px !important;
+  color: rgba(255,255,255,0.35);
+  font-size: 15px;
+}
+
+/* Responsive: hide columns on small screens */
+@media (max-width: 640px) {
+  .hide-sm { display: none; }
+}
+@media (max-width: 420px) {
+  .hide-xs { display: none; }
+}
+
+/* Responsive controls: stack on very small screens */
+@media (max-width: 576px) {
+  .games-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .games-search-wrap {
+    min-width: unset;
+  }
+  .platform-filter-tabs {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+/* ── A–Z Letter filter bar ───────────────────────────────────── */
+.letter-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.letter-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.letter-btn:hover:not(.disabled) {
+  background: rgba(0,198,255,0.12);
+  border-color: rgba(0,198,255,0.4);
+  color: #fff;
+}
+.letter-btn.active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #fff;
+}
+.letter-btn.disabled {
+  opacity: 0.22;
+  cursor: default;
+}
+
+@media (max-width: 576px) {
+  .letter-btn {
+    min-width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+}
+
+/* ── Search letter highlight ─────────────────────────────────── */
+.search-highlight {
+  background: rgba(0, 198, 255, 0.3);
+  color: #fff;
+  border-radius: 3px;
+  padding: 0 1px;
+  font-style: normal;
+}
+
+/* ── ShowGames search dropdown (mirrors Navbar pattern) ─────── */
+.sg-search-wrap {
+  position: relative;
+}
+
+.sg-search-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.sg-search-toggle:hover,
+.sg-search-toggle.active {
+  background: rgba(0,198,255,0.1);
+  border-color: rgba(0,198,255,0.4);
+  color: #fff;
+}
+
+/* Dropdown panel */
+.sg-search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 320px;
+  background: #1a1a2e;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  z-index: 200;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s;
+}
+.sg-search-dropdown.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* Input row */
+.sg-search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.sg-search-input-wrap svg { opacity: 0.45; flex-shrink: 0; }
+
+.sg-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 14px;
+}
+.sg-search-input::placeholder { color: rgba(255,255,255,0.3); }
+
+.sg-search-clear {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.sg-search-clear:hover { color: #fff; }
+
+/* Results list */
+.sg-search-results {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.sg-search-results::-webkit-scrollbar { width: 4px; }
+.sg-search-results::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+.sg-search-empty {
+  padding: 20px 16px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  text-align: center;
+}
+
+/* Each result row */
+.sg-search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.sg-search-result-item:last-child { border-bottom: none; }
+.sg-search-result-item:hover { background: rgba(0,198,255,0.08); }
+
+.sg-result-img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 7px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.sg-result-info {
+  flex: 1;
+  min-width: 0;
+}
+.sg-result-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sg-result-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+.sg-result-cat {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+}
+.search-result-platform {
+  font-size: 11px;
+}
+.sg-result-arrow {
+  opacity: 0.3;
+  flex-shrink: 0;
+}
+.sg-search-result-item:hover .sg-result-arrow { opacity: 0.7; }
+
+/* Responsive: dropdown goes full-width on small screens */
+@media (max-width: 480px) {
+  .sg-search-dropdown {
+    width: calc(100vw - 48px);
+    left: 0;
+  }
+}
+
+/* ── Sort select menu ────────────────────────────────────────── */
+.sg-sort-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 6px 12px;
+  transition: border-color 0.18s;
+}
+.sg-sort-wrap:focus-within {
+  border-color: rgba(0,198,255,0.4);
+}
+.sg-sort-icon {
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+.sg-sort-select {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 4px;
+}
+.sg-sort-select option {
+  background: #1a1a2e;
+  color: #fff;
+}
+.sg-sort-select:focus { color: #fff; }
+
+@media (max-width: 576px) {
+  .sg-sort-wrap { width: 100%; }
+  .sg-sort-select { width: 100%; }
+}
+
+/* ── Edit page back button ───────────────────────────────────── */
+.addgames-header-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.edit-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.edit-back-btn:hover {
+  background: rgba(0,198,255,0.1);
+  border-color: rgba(0,198,255,0.4);
+  color: #fff;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SHOW GAMES — CARD GRID REDESIGN
+   ════════════════════════════════════════════════════════════════ */
+
+/* Header */
+.sg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.sg-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sg-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+.sg-total-badge {
+  background: rgba(99,102,241,0.18);
+  color: #a5b4fc;
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 20px;
+  padding: 3px 11px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Filters row */
+.sg-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+/* Empty state */
+.sg-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: rgba(255,255,255,0.25);
+}
+.sg-empty-state span { font-size: 48px; display: block; margin-bottom: 12px; }
+.sg-empty-state p    { font-size: 15px; }
+
+/* ── Cards grid ─────────────────────────────────────────────── */
+.sg-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+/* Card */
+.sg-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
+  position: relative;
+}
+.sg-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0,198,255,0.35);
+  box-shadow: 0 8px 28px rgba(0,198,255,0.12);
+}
+.sg-card-selected {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.3) !important;
+}
+
+/* Cover image area */
+.sg-card-img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #0d0d1a;
+}
+.sg-card-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s;
+}
+.sg-card:hover .sg-card-cover { transform: scale(1.04); }
+
+.sg-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.7) 100%);
+  pointer-events: none;
+}
+
+/* Checkbox top-left */
+.sg-card-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  background: rgba(0,0,0,0.55);
+  border-radius: 6px;
+  padding: 4px;
+  line-height: 0;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s;
+}
+.sg-card-checkbox:hover { background: rgba(99,102,241,0.5); }
+.sg-card-checkbox input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #6366f1;
+  cursor: pointer;
+  display: block;
+}
+
+/* Trending badge top-right */
+.sg-card-trending {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.sg-card-trending.trending-on {
+  background: rgba(0,200,83,0.25);
+  color: #4ade80;
+  border: 1px solid rgba(0,200,83,0.4);
+}
+.sg-card-trending.trending-off {
+  background: rgba(0,0,0,0.45);
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.sg-card-trending:hover { opacity: 0.8; transform: scale(1.05); }
+
+/* Card body */
+.sg-card-body {
+  padding: 10px 12px 10px;
+}
+.sg-card-thumb-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.sg-card-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.1);
+  flex-shrink: 0;
+}
+.sg-card-meta { flex: 1; min-width: 0; }
+.sg-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0 0 4px;
+  line-height: 1.3;
+}
+.sg-card-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.sg-card-cat {
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+/* Card footer */
+.sg-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.sg-card-edit-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+}
+.sg-card:hover .sg-card-edit-hint { color: rgba(0,198,255,0.7); }
+
+.sg-card-delete-btn {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.2);
+  color: rgba(239,68,68,0.6);
+  border-radius: 6px;
+  padding: 5px 7px;
+  cursor: pointer;
+  line-height: 0;
+  transition: all 0.15s;
+}
+.sg-card-delete-btn:hover {
+  background: rgba(239,68,68,0.25);
+  border-color: rgba(239,68,68,0.5);
+  color: #f87171;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .sg-cards-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+}
+@media (max-width: 576px) {
+  .sg-cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .sg-header { flex-direction: column; align-items: flex-start; }
+  .sg-filters { gap: 8px; }
+}
+@media (max-width: 360px) {
+  .sg-cards-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Search dropdown responsive fix ─────────────────────────── */
+.sg-search-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sg-search-dropdown {
+  position: fixed;
+  top: auto;
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  width: min(340px, calc(100vw - 32px));
+  z-index: 999;
+}
+.sg-search-dropdown.open {
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 576px) {
+  .sg-search-dropdown {
+    left: 16px;
+    right: 16px;
+    transform: translateY(-6px);
+    width: auto;
+  }
+  .sg-search-dropdown.open {
+    transform: translateY(0);
+  }
+}
+
+/* ── Override: anchor dropdown to right edge, never overflow ── */
+.sg-search-wrap .sg-search-dropdown {
+  position: absolute;
+  left: auto;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(320px, calc(100vw - 32px));
+  transform: translateY(-6px);
+}
+.sg-search-wrap .sg-search-dropdown.open {
+  transform: translateY(0);
+}

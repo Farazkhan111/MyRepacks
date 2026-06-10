@@ -17,7 +17,8 @@ export default function Sidebar() {
     { path: "/show",      name: "Show Game",     icon: "🎮" },
     { path: "/scraper",   name: "Scraper",       icon: "🔗" },
     { path: "/import",    name: "Import Games",  icon: "📥" },
-    { path: "/autoupdate",name: "Auto Update",   icon: "🔄" },
+    { path: "/autoupdate",    name: "Auto Update",     icon: "🔄" },
+    { path: "/paid-playstore", name: "Paid Play Store", icon: "💰" },
   ];
 
   return (

@@ -33,9 +33,14 @@ const allgameSchema = mongoose.Schema({
     }
   ],
 
-  importSource:   String,   // "rawg" | "igdb" | "manual"
+  importSource:   String,   // "rawg" | "igdb" | "manual" | "playstore" | "playstore_paid"
   externalId:     String,   // ID from source API (for duplicate detection)
   lastImportedAt: Date,
-});
+
+  // ── Paid game fields ────────────────────────────────────────────
+  isPaid:         { type: Boolean, default: false },
+  price:          String,   // e.g. "$4.99"
+
+}, { timestamps: true }); // auto-adds createdAt + updatedAt
 
 module.exports = mongoose.model("allgames", allgameSchema);

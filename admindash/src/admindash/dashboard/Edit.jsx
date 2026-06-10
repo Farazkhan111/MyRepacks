@@ -63,6 +63,12 @@ export default function Edit() {
       <div className="addgames-main-content">
         <div className="addgames-form-container">
           <div className="addgames-header-row">
+            <button className="edit-back-btn" type="button" onClick={() => nav(-1)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+              Back
+            </button>
             <h2>✏️ Edit Game</h2>
           </div>
 

@@ -40,14 +40,16 @@ export default function AddGames() {
         if (d.gvideo)    setVideo(d.gvideo);   // ← trailer URL from scraper
         if (Array.isArray(d.othername)) setOthername(d.othername);
         setAutoFilled(true);
-        sessionStorage.removeItem("scraped_game");
+        // ⚠️ Do NOT remove scraped_game here — keep it so Back button restores scraper state
       } catch (e) { console.error(e); }
     }
   }, [nav]);
 
-  function addgame(e) {
+  async function addgame(e) {
     e.preventDefault();
-    axios.post(`${API}/add`, { gname, gimage, gdes, gcat, gplatform, gfimage, glink, gtrend, gvideo, othername });
+    await axios.post(`${API}/add`, { gname, gimage, gdes, gcat, gplatform, gfimage, glink, gtrend, gvideo, othername });
+    // Only clear scraper data after the game is successfully saved to DB
+    sessionStorage.removeItem("scraped_game");
     nav("/show");
   }
 
@@ -93,9 +95,16 @@ export default function AddGames() {
 
           <div className="addgames-header-row">
             <h2>🎮 Add New Game</h2>
-            <button type="button" className="scraper-shortcut-btn" onClick={() => nav("/scraper")}>
-              🔗 Use Scraper
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              {autoFilled && (
+                <button type="button" className="scraper-shortcut-btn" onClick={() => nav("/scraper")}>
+                  ← Back to Scraper
+                </button>
+              )}
+              <button type="button" className="scraper-shortcut-btn" onClick={() => nav("/scraper")}>
+                🔗 Use Scraper
+              </button>
+            </div>
           </div>
 
           <form onSubmit={addgame}>

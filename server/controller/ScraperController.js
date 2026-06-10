@@ -70,22 +70,44 @@ function extractDownloadLinks($) {
 
   function push(label, url) {
     if (!url || seen.has(url)) return;
+    // Decode HTML entities in URL
+    url = url.replace(/&amp;/g, "&").replace(/&#038;/g, "&");
     seen.add(url);
     links.push({ label: label || url, url });
   }
 
-  $("a[href]").each((_, el) => {
-    const href = clean($(el).attr("href") || "");
-    const text = clean($(el).text());
+  $("a[href], a[data-href], a[data-url]").each((_, el) => {
+    // Check all possible link attributes
+    const href = ($(el).attr("href") || $(el).attr("data-href") || $(el).attr("data-url") || "").trim();
+    const text = ($(el).text() || "").replace(/\s+/g, " ").trim();
 
     if (/\.torrent(\?.*)?$/i.test(href)) { push(text || "Download .torrent", href); return; }
     if (href.startsWith("magnet:?"))      { push(text || "Magnet link", href);       return; }
     if (/[/?&=]torrent/i.test(href))      { push(text || href, href);                return; }
 
+    // URL-encoded magnet in href
+    if (href.toLowerCase().includes("magnet%3a")) {
+      try { push(text || "Magnet link", decodeURIComponent(href)); } catch (_) {}
+      return;
+    }
+
     try {
       const hostname = new URL(href).hostname.toLowerCase();
       if (TORRENT_HOSTS.some(h => hostname.includes(h))) push(text || href, href);
     } catch (_) {}
+  });
+
+  // Also scan onclick and data attributes for hidden magnet links
+  $("[onclick], [data-magnet], [data-torrent]").each((_, el) => {
+    const attrs = [
+      $(el).attr("onclick") || "",
+      $(el).attr("data-magnet") || "",
+      $(el).attr("data-torrent") || "",
+    ];
+    for (const attr of attrs) {
+      const m = attr.match(/magnet:\?[^\s"'<>\]]+/);
+      if (m) push($(el).text().trim() || "Magnet link", m[0].replace(/&amp;/g, "&"));
+    }
   });
 
   return links;
@@ -114,9 +136,45 @@ function extractMobileDownloadLinks($) {
   return links;
 }
 
+/**
+ * extractMagnet — robust magnet: URI finder
+ *
+ * Handles:
+ *  1. Plain  magnet:?xt=urn:... in raw HTML
+ *  2. HTML-entity-encoded  magnet:?xt=urn%3A... (URL-encoded in href attrs)
+ *  3. JS-escaped  magnet:\\u003f  or  \"magnet:?...\" inside script blocks
+ *  4. Attribute values split across multiple lines
+ *
+ * Returns the decoded magnet URI or null.
+ */
 function extractMagnet(html) {
-  const m = html.match(/magnet:\?[^\s"'<>]+/);
-  return m ? m[0] : null;
+  // 1. Plain magnet: URI (most common — fitgirl, dodi etc.)
+  const plain = html.match(/magnet:\?[^\s"'<>\]]+/);
+  if (plain) return plain[0].replace(/&amp;/g, "&");
+
+  // 2. URL-encoded in href: magnet%3A%3Fxt%3D...
+  const encoded = html.match(/magnet%3A%3F[^\s"'<>\]]+/i);
+  if (encoded) return decodeURIComponent(encoded[0]);
+
+  // 3. Double-URL-encoded: magnet%253A%253F...
+  const dblEncoded = html.match(/magnet%253A%253F[^\s"'<>\]]+/i);
+  if (dblEncoded) return decodeURIComponent(decodeURIComponent(dblEncoded[0]));
+
+  // 4. JS unicode escape inside script: magnet:\u003f or \u0026 for &
+  const jsEscaped = html.match(/magnet:\\u003f[^"'\\<>\]]+/i);
+  if (jsEscaped) {
+    try {
+      // Parse the JSON string fragment to unescape \u sequences
+      const decoded = JSON.parse(`"${jsEscaped[0]}"`);
+      return decoded;
+    } catch (_) { return jsEscaped[0].replace(/\\u003f/gi, "?").replace(/\\u0026/gi, "&"); }
+  }
+
+  // 5. Attribute value with entity-encoded & (&amp;)
+  const entityAmp = html.match(/magnet:\?xt=[^"'<>\s]+(?:&amp;[^"'<>\s]+)*/);
+  if (entityAmp) return entityAmp[0].replace(/&amp;/g, "&");
+
+  return null;
 }
 
 // ════════════════════════════════════════════════════════════════

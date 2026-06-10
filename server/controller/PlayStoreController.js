@@ -239,6 +239,69 @@ function extractScreenshotsFromPlayStorePage($) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+//  YOUTUBE TRAILER FINDER
+// ══════════════════════════════════════════════════════════════════
+
+async function fetchYouTubeTrailer(gameName, platform = "Mobile") {
+  try {
+    const hint  = platform === "Mobile" ? "android mobile" : "PC";
+    const query = `${gameName} ${hint} official trailer`;
+    const url   = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+
+    const { data: html } = await axios.get(url, {
+      headers: {
+        "User-Agent":      HEADERS["User-Agent"],
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      timeout: 15000,
+    });
+
+    const match = html.match(/var ytInitialData\s*=\s*(\{.+?\});\s*<\/script>/s);
+    if (!match) return null;
+
+    let ytData;
+    try { ytData = JSON.parse(match[1]); } catch (_) { return null; }
+
+    const videos = [];
+    (function walk(obj) {
+      if (!obj || typeof obj !== "object") return;
+      if (obj.videoId && obj.title) {
+        const title   = obj.title?.runs?.[0]?.text || obj.title?.simpleText || "";
+        const channel = obj.shortBylineText?.runs?.[0]?.text || "";
+        const durText = obj.lengthText?.simpleText || "";
+        const parts   = durText.split(":").map(Number);
+        let secs = 0;
+        if (parts.length === 2) secs = parts[0] * 60 + parts[1];
+        else if (parts.length === 3) secs = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        videos.push({ videoId: obj.videoId, title, channel, secs });
+        return;
+      }
+      for (const v of Object.values(obj)) walk(v);
+    })(ytData);
+
+    if (!videos.length) return null;
+
+    const scored = videos.map(v => {
+      let score = 0;
+      const t = v.title.toLowerCase();
+      if (t.includes("official trailer")) score += 40;
+      else if (t.includes("trailer"))     score += 25;
+      if (t.includes("official"))         score += 10;
+      if (v.secs > 60 && v.secs < 600)   score += 10;
+      if (v.secs < 60)                    score -= 20;
+      return { ...v, score };
+    }).sort((a, b) => b.score - a.score);
+
+    const best = scored[0];
+    if (!best || best.score < 0) return null;
+    return `https://www.youtube.com/watch?v=${best.videoId}`;
+  } catch (e) {
+    psLog("warn", `YouTube trailer error: ${e.message}`);
+    return null;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
 //  STEP 1: Scrape Play Store chart page
 // ══════════════════════════════════════════════════════════════════
 
@@ -446,8 +509,19 @@ async function runPlayStoreLoop() {
           );
 
           psCurrentGame.step = "building download link";
+          // Direct APKPure XAPK download — works without login
           const downloadUrl = `https://d.apkpure.net/b/XAPK/${pkgId}?version=latest`;
           const category    = mapMobileCategory(meta.genre);
+
+          // ── YouTube trailer ───────────────────────────────────
+          psCurrentGame.step = "fetching YouTube trailer";
+          let trailerUrl = null;
+          try {
+            trailerUrl = await fetchYouTubeTrailer(meta.name, "Mobile");
+            if (trailerUrl) psLog("info", `🎬 Trailer: ${trailerUrl}`);
+          } catch (e) {
+            psLog("warn", `Trailer fetch failed: ${e.message}`);
+          }
 
           const imagesArr = [];
           if (iconUrl) imagesArr.push({ type: "cover",      url: iconUrl, source: "playstore" });
@@ -472,7 +546,7 @@ async function runPlayStoreLoop() {
             platforms:     ["Android"],
             trending:      "Not Trending",
             link:          downloadUrl,
-            video:         "",
+            video:         trailerUrl || "",
             images:        imagesArr,
             importSource:  "playstore",
             externalId:    pkgId,
@@ -485,7 +559,7 @@ async function runPlayStoreLoop() {
 
           psLog(
             result === "inserted" ? "success" : "info",
-            `"${meta.name}" → ${result} | icon:${iconUrl ? "✅" : "❌"} hero:${heroUrl ? "✅" : "❌"} | ${category} | total:${psTotalImported}`
+            `"${meta.name}" → ${result} | icon:${iconUrl ? "✅" : "❌"} hero:${heroUrl ? "✅" : "❌"} trailer:${trailerUrl ? "✅" : "❌"} | ${category} | total:${psTotalImported}`
           );
         } catch (e) {
           psLog("error", `Error on "${name}": ${e.message}`);

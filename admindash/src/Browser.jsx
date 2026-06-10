@@ -7,7 +7,8 @@ import ShowGames   from './admindash/dashboard/ShowGames';
 import Edit        from './admindash/dashboard/Edit';
 import GameScraper from './admindash/dashboard/GameScraper';
 import ImportGames from './admindash/dashboard/ImportGames';
-import AutoUpdate  from './admindash/dashboard/AutoUpdate';
+import AutoUpdate     from './admindash/dashboard/AutoUpdate';
+import PaidPlayStore  from './admindash/dashboard/PaidPlayStore';
 
 export default function Browser() {
   return (
@@ -21,7 +22,8 @@ export default function Browser() {
           <Route path="/edit"       element={<Edit />} />
           <Route path="/scraper"    element={<GameScraper />} />
           <Route path="/import"     element={<ImportGames />} />
-          <Route path="/autoupdate" element={<AutoUpdate />} />
+          <Route path="/autoupdate"     element={<AutoUpdate />} />
+          <Route path="/paid-playstore" element={<PaidPlayStore />} />
         </Route>
       </Routes>
     </BrowserRouter>

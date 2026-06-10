@@ -3,9 +3,9 @@ const gameController       = require("../controller/Gamecontroller");
 const scraperController    = require("../controller/ScraperController");
 const importController     = require("../controller/ImportController");
 const autoUpdateController = require("../controller/AutoUpdateController");
-const fitgirlCtrl    = require("../controller/fitgirlImport");
-const playStoreCtrl  = require("../controller/PlayStoreController");
-
+const fitgirlCtrl          = require("../controller/fitgirlImport");
+const playStoreCtrl        = require("../controller/PlayStoreController");
+const paidPlayCtrl         = require("../controller/PaidPlayStoreController");
 
 const Router = express.Router();
 
@@ -46,17 +46,22 @@ Router.post("/autoupdate/stop",    autoUpdateController.StopAutoUpdate);
 Router.get("/autoupdate/status",   autoUpdateController.AutoUpdateStatus);
 Router.post("/autoupdate/preview", autoUpdateController.AutoUpdatePreview);
 
+// ── FitGirl Import ────────────────────────────────────────────────
 Router.post("/import/fitgirl/start",  fitgirlCtrl.StartFitgirlImport);
 Router.post("/import/fitgirl/stop",   fitgirlCtrl.StopFitgirlImport);
 Router.get ("/import/fitgirl/status", fitgirlCtrl.FitgirlImportStatus);
 Router.post("/import/fitgirl/reset",  fitgirlCtrl.ResetFitgirlImport);
 
-// ── Play Store Import ─────────────────────────────────────────────
+// ── Play Store Import (Free Games) ───────────────────────────────
 Router.post("/import/playstore/start",  playStoreCtrl.StartPlayStoreImport);
 Router.post("/import/playstore/stop",   playStoreCtrl.StopPlayStoreImport);
 Router.get ("/import/playstore/status", playStoreCtrl.PlayStoreImportStatus);
 Router.post("/import/playstore/reset",  playStoreCtrl.ResetPlayStoreImport);
 
-
+// ── Paid Play Store Import ────────────────────────────────────────
+Router.post("/import/playstore-paid/start",  paidPlayCtrl.StartPaidPlayStoreImport);
+Router.post("/import/playstore-paid/stop",   paidPlayCtrl.StopPaidPlayStoreImport);
+Router.get ("/import/playstore-paid/status", paidPlayCtrl.PaidPlayStoreImportStatus);
+Router.post("/import/playstore-paid/reset",  paidPlayCtrl.ResetPaidPlayStoreImport);
 
 module.exports = Router;
