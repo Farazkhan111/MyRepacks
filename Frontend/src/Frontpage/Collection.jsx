@@ -2,6 +2,7 @@ import axios from 'axios'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import url from './url'
+import { useTilt, Reveal } from './ScrollFx'
 
 /* ── Extract YouTube video ID from any YT URL format ── */
 function getYouTubeId(ytUrl) {
@@ -23,6 +24,7 @@ function getYouTubeId(ytUrl) {
 function GameCard({ game, index, onClick }) {
   const iframeRef  = useRef(null)
   const hoverTimer = useRef(null)
+  const tiltRef    = useTilt()
   const [hovered,     setHovered]     = useState(false)
   const [iframeReady, setIframeReady] = useState(false)
   const videoId = getYouTubeId(game.video)
@@ -52,6 +54,7 @@ function GameCard({ game, index, onClick }) {
 
   return (
     <div
+      ref={tiltRef}
       className="col-card"
       onClick={onClick}
       onMouseEnter={handleMouseEnter}
@@ -249,12 +252,13 @@ export default function Collection() {
         ) : (
           <div className="collection-grid">
             {filtered.map((game, index) => (
-              <GameCard
-                key={game._id || index}
-                game={game}
-                index={index}
-                onClick={() => nav('/gamepage', { state: game._id })}
-              />
+              <Reveal key={game._id || index} delay={(index % 12) * 30}>
+                <GameCard
+                  game={game}
+                  index={index}
+                  onClick={() => nav('/gamepage', { state: game._id })}
+                />
+              </Reveal>
             ))}
           </div>
         )}
