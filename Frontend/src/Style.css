@@ -1318,7 +1318,14 @@ body.cyber-cursor-active * { cursor: none !important; }
 .collection-empty p    { font-size: 16px; }
 
 /* YouTube hover preview */
-.col-card-yt-iframe { position: absolute; top: -10%; left: -10%; width: 120%; height: 120%; border: none; pointer-events: none; }
+.col-card-yt-iframe { position: absolute; top: -16%; left: -16%; width: 132%; height: 132%; border: none; pointer-events: none; }
+/* Cosmetic crop-masks: YouTube briefly shows a title/channel card at the
+   top when playback starts, and a small logo in the bottom-right corner.
+   The iframe is already scaled/cropped above; these sit on top as a
+   second layer of insurance so neither ever shows on the card. */
+.col-card-yt-mask { position: absolute; pointer-events: none; z-index: 5; }
+.col-card-yt-mask-top    { top: 0; left: 0; right: 0; height: 16%; background: linear-gradient(to bottom, rgba(7,7,15,0.85), transparent); }
+.col-card-yt-mask-corner { bottom: 0; right: 0; width: 22%; height: 16%; background: rgba(7,7,15,0.9); border-radius: 10px 0 0 0; }
 .col-card-video-badge {
   position: absolute; bottom: 10px; right: 10px;
   display: flex; align-items: center; gap: 5px;
@@ -1365,6 +1372,43 @@ body.cyber-cursor-active * { cursor: none !important; }
 .gp-block-title { font-family: var(--font-display); font-size: 1.4rem; letter-spacing: 3px; color: #f0f0f0; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
 .gp-comment-count { display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 11px; color: var(--neon-cyan); background: rgba(0,229,255,0.1); border: 1px solid rgba(0,229,255,0.25); min-width: 26px; height: 26px; padding: 0 8px; border-radius: 100px; letter-spacing: 0; }
 .gp-description { font-family: var(--font-body); font-size: 15px; color: rgba(200,210,230,0.65); line-height: 1.8; }
+
+/* ── Screenshots gallery ───────────────────────────────────────── */
+.gp-shots-block { margin-bottom: 32px; }
+.gp-shots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.gp-shot-thumb {
+  position: relative; padding: 0; margin: 0; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; overflow: hidden; cursor: pointer; background: rgba(12,12,24,0.6);
+  aspect-ratio: 16 / 9; transition: border-color 0.2s, transform 0.2s;
+}
+.gp-shot-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s; }
+.gp-shot-thumb:hover { border-color: rgba(0,229,255,0.4); transform: translateY(-2px); }
+.gp-shot-thumb:hover img { transform: scale(1.06); }
+
+.gp-lightbox {
+  position: fixed; inset: 0; z-index: 999; background: rgba(5,5,12,0.92); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 40px;
+}
+.gp-lightbox-img { max-width: 92vw; max-height: 86vh; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); border: 1px solid rgba(0,229,255,0.2); }
+.gp-lightbox-close {
+  position: absolute; top: 20px; right: 24px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+  color: #f0f0f0; font-size: 18px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; transition: background 0.2s;
+}
+.gp-lightbox-close:hover { background: rgba(255,255,255,0.14); }
+.gp-lightbox-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15); color: #f0f0f0; font-size: 28px; width: 48px; height: 48px;
+  border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;
+}
+.gp-lightbox-nav:hover { background: rgba(0,229,255,0.18); border-color: rgba(0,229,255,0.4); }
+.gp-lightbox-prev { left: 20px; }
+.gp-lightbox-next { right: 20px; }
+.gp-lightbox-count {
+  position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); font-family: var(--font-mono);
+  font-size: 12px; letter-spacing: 1px; color: rgba(200,210,230,0.6); background: rgba(0,0,0,0.4);
+  padding: 6px 14px; border-radius: 100px;
+}
+
 .gp-dl-btn {
   display: inline-flex; align-items: center; gap: 10px;
   background: linear-gradient(135deg, var(--neon-purple), var(--neon-blue)); color: #07070f;
@@ -1414,6 +1458,12 @@ body.cyber-cursor-active * { cursor: none !important; }
   .gp-dl-btn { max-width: 100%; }
   .gp-form { padding: 18px; }
   .gp-post-btn { align-self: stretch; }
+  .gp-shots-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .gp-lightbox { padding: 16px; }
+  .gp-lightbox-nav { width: 38px; height: 38px; font-size: 22px; }
+  .gp-lightbox-prev { left: 8px; }
+  .gp-lightbox-next { right: 8px; }
+  .gp-lightbox-close { top: 12px; right: 12px; width: 34px; height: 34px; }
 }
 
 /* ============================================================

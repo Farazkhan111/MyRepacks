@@ -88,6 +88,53 @@ async function checkImageUrl(url) {
 }
 
 // ═════════════════════════════════════════════════════════════════
+// ── JUNK / WIDGET IMAGE FILTER ────────────────────────────────────
+//
+//  Repack blog posts (FitGirl, DODI, etc.) embed small, dynamically
+//  generated "torrent health" widgets — e.g. the torrent-stats.info
+//  ([kitty-kode]) badge showing Files/Seeds/Peers/Completed — right
+//  alongside the real game screenshots. These widgets are NOT
+//  screenshots and must never be saved/shown as one on a game page.
+//
+//  isJunkScreenshotUrl(url, alt) returns true when an <img> should
+//  be dropped from a scraped screenshot list.
+// ═════════════════════════════════════════════════════════════════
+
+// Known widget hosts / branding seen embedded in repack posts.
+const JUNK_IMAGE_HOSTS = [
+  "torrent-stats.info",
+  "torrentstats.info",
+  "kitty-kode",
+  "kittykode",
+];
+
+// Filename / path fragments used by these stats-badge generators.
+const JUNK_IMAGE_KEYWORDS = [
+  "torrent-stats",
+  "torrentstats",
+  "kitty-kode",
+  "kittykode",
+  "torrent-widget",
+  "torrentwidget",
+  "seed-peer",
+  "seedpeer",
+];
+
+// The badge's alt/title text (or surrounding caption) typically reads
+// like "Files: 7 Seeds: 62 Peers: 0 Completed: 272" — catch that shape
+// even if a future widget changes hosting domain.
+const JUNK_TEXT_PATTERN = /\bseeds?\s*:\s*\d+/i;
+
+function isJunkScreenshotUrl(url, altOrCaption = "") {
+  if (!url || typeof url !== "string") return true;
+  const lower = url.toLowerCase();
+  if (JUNK_IMAGE_HOSTS.some(h => lower.includes(h)))    return true;
+  if (JUNK_IMAGE_KEYWORDS.some(k => lower.includes(k))) return true;
+  if (altOrCaption && JUNK_TEXT_PATTERN.test(altOrCaption)) return true;
+  return false;
+}
+
+// ═════════════════════════════════════════════════════════════════
 // ── APKPure ICON FETCHER ──────────────────────────────────────────
 //
 //  Fetches the app icon for a given package ID from APKPure.
@@ -670,4 +717,5 @@ module.exports = {
   // ── New exports used by AutoUpdateController ──
   checkImageUrl,       // ← tests if a URL is a reachable image
   fetchApkPureIcon,    // ← fetches hotlink-safe icon from APKPure CDN
+  isJunkScreenshotUrl, // ← filters out torrent-stats.info style widget images
 };

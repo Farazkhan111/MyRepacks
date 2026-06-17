@@ -59,6 +59,12 @@ function SelectBtn({ url, type, selectedImages, setSelectedImages }) {
   );
 }
 
+function toggleShot(url, selectedShots, setSelectedShots) {
+  setSelectedShots(prev =>
+    prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]
+  );
+}
+
 export default function GameScraper() {
   const nav = useNavigate();
 
@@ -73,6 +79,7 @@ export default function GameScraper() {
   const [imgLoading,      setImgLoading]     = useState(false);
   const [imgResults,      setImgResults]     = useState([]);
   const [selectedImages,  setSelectedImages] = useState({ cover: "", hero: "" });
+  const [selectedShots,   setSelectedShots]  = useState([]);   // screenshots chosen to save with the game
 
   const [descQuery,       setDescQuery]      = useState("");
   const [descLoading,     setDescLoading]    = useState(false);
@@ -94,6 +101,7 @@ export default function GameScraper() {
     setDetectedPlat(platform);
     setLoading(true); setError(null); setGame(null);
     setImgResults([]); setSelectedImages({ cover: "", hero: "" });
+    setSelectedShots([]);
     setDescResults([]); setSelectedDesc("");
     setTrailerUrl(""); setTrailerError(""); setManualTrailer("");
 
@@ -111,6 +119,12 @@ export default function GameScraper() {
       setTrailerQuery(json.data.title || "");
       if (json.data.description)
         setDescResults([{ text: json.data.description, source: json.data.descriptionSource || "web" }]);
+
+      // Auto-select up to 5 scraped screenshots by default — admin can
+      // deselect any they don't want before sending to Add Game.
+      if (Array.isArray(json.data.screenshots) && json.data.screenshots.length) {
+        setSelectedShots(json.data.screenshots.slice(0, 5));
+      }
 
       // Auto-fill trailer if scraper returned one
       if (json.data.trailer) setTrailerUrl(json.data.trailer);
@@ -193,15 +207,16 @@ export default function GameScraper() {
   function sendToAddGame() {
     if (!game) return;
     const payload = {
-      gname:     game.title || "",
-      gdes:      selectedDesc || game.description || "",
-      gimage:    selectedImages.cover  || game.cover  || "",
-      gfimage:   selectedImages.hero   || game.fimage || game.cover || "",
-      gplatform: game.platform || detectedPlat,
-      gcat:      inferCategory(game.info?.Genres || game.info?.Category || ""),
-      glink:     game.downloadLinks?.[0]?.url || "",
-      gvideo:    trailerUrl || "",   // ← YouTube trailer URL
-      othername: [],
+      gname:        game.title || "",
+      gdes:         selectedDesc || game.description || "",
+      gimage:       selectedImages.cover  || game.cover  || "",
+      gfimage:      selectedImages.hero   || game.fimage || game.cover || "",
+      gplatform:    game.platform || detectedPlat,
+      gcat:         inferCategory(game.info?.Genres || game.info?.Category || ""),
+      glink:        game.downloadLinks?.[0]?.url || "",
+      gvideo:       trailerUrl || "",   // ← YouTube trailer URL
+      gscreenshots: selectedShots,      // ← screenshots chosen on the Screenshots tab
+      othername:    [],
     };
     sessionStorage.setItem("scraped_game", JSON.stringify(payload));
     setCopied(true);
@@ -307,6 +322,7 @@ export default function GameScraper() {
                       ? <span className="chip chip-purple">🌐 Description ready</span>
                       : <span className="chip chip-amber">⚠️ No description</span>}
                   {(selectedImages.cover || selectedImages.hero) && <span className="chip chip-green">🖼 Image selected</span>}
+                  {selectedShots.length > 0 && <span className="chip chip-green">📸 {selectedShots.length} screenshot{selectedShots.length > 1 ? "s" : ""} selected</span>}
                   {game.downloadLinks?.length > 0 && <span className="chip chip-green">⬇ {game.downloadLinks.length} links</span>}
                   {trailerUrl
                     ? <span className="chip chip-green">▶ Trailer ready</span>
@@ -326,7 +342,7 @@ export default function GameScraper() {
                 { id: "desc",        label: `📝 Description${selectedDesc ? " ✓" : ""}` },
                 { id: "trailer",     label: `▶ Trailer${trailerUrl ? " ✓" : ""}` },
                 { id: "downloads",   label: `⬇ Downloads (${game.downloadLinks?.length || 0})` },
-                { id: "screenshots", label: `🖼 Screenshots (${game.screenshots?.length || 0})` },
+                { id: "screenshots", label: `🖼 Screenshots (${selectedShots.length}/${game.screenshots?.length || 0})` },
                 { id: "images",      label: "🔍 Image Search" },
               ].map(t => (
                 <button key={t.id} className={`scraper-tab ${tab === t.id ? "active" : ""}`}
@@ -514,12 +530,24 @@ export default function GameScraper() {
               {tab === "screenshots" && (
                 <div className="ss-grid">
                   {game.screenshots?.length > 0
-                    ? game.screenshots.map((src, i) => (
-                        <a key={i} href={src} target="_blank" rel="noopener noreferrer">
-                          <img src={src} alt={`Screenshot ${i + 1}`} className="ss-img"
-                            onError={e => (e.target.parentElement.style.display = "none")} />
-                        </a>
-                      ))
+                    ? game.screenshots.map((src, i) => {
+                        const isSelected = selectedShots.includes(src);
+                        return (
+                          <div key={i} className={`ss-item ${isSelected ? "ss-item-selected" : ""}`}>
+                            <a href={src} target="_blank" rel="noopener noreferrer">
+                              <img src={src} alt={`Screenshot ${i + 1}`} className="ss-img"
+                                onError={e => (e.target.parentElement.parentElement.style.display = "none")} />
+                            </a>
+                            <button
+                              type="button"
+                              className={`ss-select-btn ${isSelected ? "selected" : ""}`}
+                              onClick={() => toggleShot(src, selectedShots, setSelectedShots)}
+                            >
+                              {isSelected ? "✓ Selected" : "Select"}
+                            </button>
+                          </div>
+                        );
+                      })
                     : <p className="scraper-empty">No screenshots found.</p>}
                 </div>
               )}

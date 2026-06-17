@@ -14,6 +14,7 @@ export default function Gamepage() {
   const [name,      setName]    = useState('')
   const [text,      setText]    = useState('')
   const [submitted, setSubmitted]=useState(false)
+  const [lightboxIdx, setLightboxIdx] = useState(null)
 
   const loc = useLocation()
   const idd = loc.state
@@ -48,6 +49,23 @@ export default function Gamepage() {
   const dlNote     = isMobile
     ? '🔒 Safe APK · No registration · Install on Android'
     : '🔒 Virus-free · Fully repacked · No registration needed'
+
+  // Some repack sites (FitGirl, etc.) embed a small "torrent health"
+  // widget image (seeds/peers/file count, e.g. torrent-stats.info /
+  // [kitty-kode]) inside the post alongside real screenshots. Guard
+  // against ever rendering one here, even if it slipped into the DB
+  // before the scraper started filtering these out.
+  const isJunkShot = (img) => {
+    const url = (img.url || '').toLowerCase()
+    if (url.includes('torrent-stats') || url.includes('torrentstats') ||
+        url.includes('kitty-kode')    || url.includes('kittykode')) return true
+    const caption = (img.alt || img.title || '').toLowerCase()
+    return /\bseeds?\s*:\s*\d+/.test(caption)
+  }
+
+  const screenshots = Array.isArray(game.images)
+    ? game.images.filter((img) => img.type === 'screenshot' && img.url && !isJunkShot(img))
+    : []
 
   return (
     <div className="gp-page">
@@ -91,6 +109,24 @@ export default function Gamepage() {
           <div className="gp-desc-block">
             <h2 className="gp-block-title">About</h2>
             <p className="gp-description">{game.description}</p>
+          </div>
+        )}
+
+        {screenshots.length > 0 && (
+          <div className="gp-shots-block">
+            <h2 className="gp-block-title">Screenshots</h2>
+            <div className="gp-shots-grid">
+              {screenshots.map((shot, i) => (
+                <button
+                  key={shot.url || i}
+                  className="gp-shot-thumb"
+                  onClick={() => setLightboxIdx(i)}
+                  aria-label={`View screenshot ${i + 1}`}
+                >
+                  <img src={shot.url} alt={`${game.name} screenshot ${i + 1}`} loading="lazy" />
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -160,6 +196,43 @@ export default function Gamepage() {
           </div>
         </div>
       </div>
+
+      {lightboxIdx !== null && screenshots[lightboxIdx] && (
+        <div className="gp-lightbox" onClick={() => setLightboxIdx(null)}>
+          <button className="gp-lightbox-close" onClick={() => setLightboxIdx(null)} aria-label="Close">
+            ✕
+          </button>
+
+          {screenshots.length > 1 && (
+            <button
+              className="gp-lightbox-nav gp-lightbox-prev"
+              onClick={(e) => { e.stopPropagation(); setLightboxIdx((lightboxIdx - 1 + screenshots.length) % screenshots.length) }}
+              aria-label="Previous screenshot"
+            >
+              ‹
+            </button>
+          )}
+
+          <img
+            className="gp-lightbox-img"
+            src={screenshots[lightboxIdx].url}
+            alt={`${game.name} screenshot ${lightboxIdx + 1}`}
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {screenshots.length > 1 && (
+            <button
+              className="gp-lightbox-nav gp-lightbox-next"
+              onClick={(e) => { e.stopPropagation(); setLightboxIdx((lightboxIdx + 1) % screenshots.length) }}
+              aria-label="Next screenshot"
+            >
+              ›
+            </button>
+          )}
+
+          <div className="gp-lightbox-count">{lightboxIdx + 1} / {screenshots.length}</div>
+        </div>
+      )}
     </div>
   )
 }

@@ -22,6 +22,14 @@ exports.Login = async (req, res) => {
 
 exports.AddGame = async (req, res) => {
   try {
+    // gscreenshots: array of plain URL strings from the admin form/scraper.
+    // Convert into the images[] schema shape so Gamepage.jsx picks them up
+    // the same way the bulk importers (RAWG/IGDB/PlayStore/FitGirl) do.
+    const screenshotUrls = Array.isArray(req.body.gscreenshots) ? req.body.gscreenshots : [];
+    const images = screenshotUrls
+      .filter(u => typeof u === "string" && u.trim().length > 5)
+      .map(u => ({ type: "screenshot", url: u.trim(), source: "manual" }));
+
     const newgame = await games({
       name:        req.body.gname,
       image:       req.body.gimage,
@@ -33,6 +41,7 @@ exports.AddGame = async (req, res) => {
       link:        req.body.glink,
       fimage:      req.body.gfimage,
       video:       req.body.gvideo,
+      images,
     });
     newgame.save();
     res.send(newgame);
@@ -66,23 +75,33 @@ exports.Edit = async (req, res) => {
 
 exports.Gupdate = async (req, res) => {
   try {
-    await games.updateOne(
-      { _id: req.body.id },
-      {
-        $set: {
-          name:        req.body.gname,
-          image:       req.body.gimage,
-          othername:   req.body.othername,
-          description: req.body.gdes,
-          category:    req.body.gcat,
-          platform:    req.body.gplatform || "PC",
-          trending:    req.body.gtrend,
-          link:        req.body.glink,
-          fimage:      req.body.gfimage,
-          video:       req.body.gvideo,
-        },
-      }
-    );
+    const update = {
+      name:        req.body.gname,
+      image:       req.body.gimage,
+      othername:   req.body.othername,
+      description: req.body.gdes,
+      category:    req.body.gcat,
+      platform:    req.body.gplatform || "PC",
+      trending:    req.body.gtrend,
+      link:        req.body.glink,
+      fimage:      req.body.gfimage,
+      video:       req.body.gvideo,
+    };
+
+    // gscreenshots is only sent when the Edit form actually has a
+    // screenshots manager (it does now). Only touch `images` when it's
+    // present, so older clients / partial requests can never wipe out
+    // screenshots that auto-update or an importer already attached.
+    if (Array.isArray(req.body.gscreenshots)) {
+      const existing = await games.findOne({ _id: req.body.id }).select("images").lean();
+      const nonShots = (existing?.images || []).filter(i => i.type !== "screenshot");
+      const shotDocs = req.body.gscreenshots
+        .filter(u => typeof u === "string" && u.trim().length > 5)
+        .map(u => ({ type: "screenshot", url: u.trim(), source: "manual" }));
+      update.images = [...nonShots, ...shotDocs];
+    }
+
+    await games.updateOne({ _id: req.body.id }, { $set: update });
     res.send("Update");
   } catch (err) {
     console.log(err);

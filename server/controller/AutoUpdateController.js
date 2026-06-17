@@ -12,6 +12,7 @@ const {
   buildSearchVariants,
   checkImageUrl,       // ← tests if a stored URL is still alive
   fetchApkPureIcon,    // ← fetches hotlink-safe icon from APKPure CDN
+  isJunkScreenshotUrl, // ← detects torrent-stats.info style widget images
 } = require("./helpers");
 
 // ── In-memory state ───────────────────────────────────────────────
@@ -33,7 +34,7 @@ function pushLog(type, msg) {
 let stats = {
   total: 0, done: 0,
   linksFixed: 0, imagesFixed: 0, imageBrokenFound: 0,
-  descFixed: 0, errors: 0, deleted: 0,
+  descFixed: 0, screenshotsFixed: 0, errors: 0, deleted: 0,
 };
 
 // ── What counts as "missing" ──────────────────────────────────────
@@ -42,6 +43,7 @@ function needsImage(g)       { return !g.image       || g.image.trim().length   
 function needsFimage(g)      { return !g.fimage      || g.fimage.trim().length      < 5; }
 function needsDescription(g) { return !g.description || g.description.trim().length < 20; }
 function needsTrailer(g)     { return !g.trailer?.url && (!g.video || g.video.trim().length < 5); }
+function needsScreenshots(g) { return !Array.isArray(g.images) || g.images.filter(i => i.type === "screenshot").length === 0; }
 
 // ══════════════════════════════════════════════════════════════════
 //  IMAGE HEALTH CHECK + REPAIR
@@ -149,6 +151,109 @@ async function repairBrokenImages(game) {
   return patch; // {} if nothing was broken / nothing was fixed
 }
 
+// ══════════════════════════════════════════════════════════════════
+//  SCREENSHOT FETCH + REPAIR
+//
+//  Two jobs, both handled here:
+//   1. MISSING — game.images has zero entries with type "screenshot"
+//      → fetch a fresh batch from the right source and push them in.
+//   2. BROKEN  — game.images HAS screenshot entries, but one or more
+//      of their URLs no longer resolve (dead link / 404 / hotlink
+//      block) → drop the dead ones and try to refill from source.
+//
+//  Source priority mirrors fetchBannerCoverArt:
+//    PC:     SteamGridDB/Steam (no screenshots) → IGDB → RAWG
+//    Mobile: IGDB → SteamGridDB → RAWG
+//  fetchBannerCoverArt already returns a `screenshots` array picked
+//  from whichever source matched, so we lean on that first and only
+//  fall back to the raw IGDB/RAWG calls if it comes back empty.
+// ══════════════════════════════════════════════════════════════════
+
+async function repairScreenshots(game) {
+  const existing = Array.isArray(game.images) ? game.images : [];
+  const nonShots = existing.filter(i => i.type !== "screenshot");
+
+  // Drop any junk widget images (torrent-stats.info / [kitty-kode] style
+  // "Seeds/Peers" badges) that slipped in before the scraper filtered
+  // these out, so a repair run also cleans up already-imported games.
+  const allShots  = existing.filter(i => i.type === "screenshot");
+  const shots      = allShots.filter(s => !isJunkScreenshotUrl(s.url, s.alt));
+  const junkRemoved = allShots.length - shots.length;
+  if (junkRemoved > 0) {
+    pushLog("warn", `[${game.platform}] "${game.name}" — removed ${junkRemoved} non-screenshot widget image(s)`);
+  }
+
+  // ── Step 1: validate existing screenshot URLs, drop dead ones ───
+  let aliveShots = shots;
+  if (shots.length) {
+    currentGame.step = "checking screenshot URLs";
+    const checks = await Promise.all(shots.map(s => checkImageUrl(s.url)));
+    aliveShots = shots.filter((_, i) => checks[i]);
+    const deadCount = shots.length - aliveShots.length;
+    if (deadCount > 0) {
+      pushLog("warn", `[${game.platform}] "${game.name}" — ${deadCount} broken screenshot URL(s) found`);
+    }
+  }
+
+  const needFresh = aliveShots.length === 0; // nothing usable left (or never had any)
+
+  if (!needFresh) {
+    // Had at least one live screenshot — only rewrite if we actually dropped dead/junk ones
+    if (aliveShots.length !== allShots.length) {
+      return { images: [...nonShots, ...aliveShots], _screenshotsCleaned: true };
+    }
+    return {}; // all screenshots already healthy, nothing to do
+  }
+
+  // ── Step 2: fetch a fresh batch of screenshots ───────────────────
+  currentGame.step = "fetching screenshots…";
+  let freshUrls  = [];
+  let source     = null;
+
+  try {
+    const art = await fetchBannerCoverArt(game.name, game.platform);
+    if (art?.screenshots?.length) {
+      freshUrls = art.screenshots;
+      source    = art.source;
+    }
+  } catch (_) {}
+
+  if (!freshUrls.length) {
+    try {
+      if (game.platform === "Mobile") {
+        const d = await fetchIGDBImages(game.name);
+        if (d?.screenshots?.length) { freshUrls = d.screenshots; source = "igdb"; }
+      } else {
+        const d = await fetchRAWGData(game.name);
+        if (d?.screenshots?.length) { freshUrls = d.screenshots; source = "rawg"; }
+      }
+    } catch (_) {}
+  }
+
+  if (!freshUrls.length) {
+    pushLog("warn", `[${game.platform}] "${game.name}" — no screenshots found`);
+    // Still write back the cleaned list (dead/junk ones removed) even if we found no replacements
+    if (aliveShots.length !== allShots.length) {
+      return { images: [...nonShots, ...aliveShots], _screenshotsCleaned: true };
+    }
+    return {};
+  }
+
+  // Dedup against anything still alive, cap at 5 screenshots total
+  const seenUrls    = new Set(aliveShots.map(s => s.url));
+  const newShotDocs = freshUrls
+    .filter(u => !seenUrls.has(u))
+    .slice(0, 5 - aliveShots.length)
+    .map(url => ({ type: "screenshot", url, source: source || "auto" }));
+
+  pushLog("success", `[${game.platform}] "${game.name}" — screenshots ✅ (${newShotDocs.length} from ${source})`);
+
+  return {
+    images: [...nonShots, ...aliveShots, ...newShotDocs],
+    _screenshotsCleaned: true,
+  };
+}
+
 // ── Build MongoDB query based on selected fix targets ─────────────
 function buildQuery(targets, platform) {
   const or = [];
@@ -169,6 +274,13 @@ function buildQuery(targets, platform) {
     or.push(
       { "trailer.url": { $in: [null, ""] } },
       { "trailer.url": { $exists: false } }
+    );
+
+  if (targets.includes("screenshots"))
+    or.push(
+      { images: { $exists: false } },
+      { images: { $size: 0 } },
+      { images: { $not: { $elemMatch: { type: "screenshot" } } } }
     );
 
   // "imagecheck" target: fetch ALL games (even those with images)
@@ -226,7 +338,7 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
   stats = {
     total: allGames.length, done: 0,
     linksFixed: 0, imagesFixed: 0, imageBrokenFound: 0,
-    descFixed: 0, errors: 0, deleted: 0,
+    descFixed: 0, screenshotsFixed: 0, errors: 0, deleted: 0,
   };
 
   pushLog("info",
@@ -459,6 +571,38 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
       }
     }
 
+    if (stopReq) break;
+
+    // ── 5. Screenshots (fetch missing / repair broken) ────────────
+    if (
+      targets.includes("screenshots") ||
+      includeImageCheck ||
+      (targets.includes("image") && needsScreenshots(game))
+    ) {
+      currentGame.step = "checking screenshots…";
+      try {
+        // Fold in any screenshots step 2 already collected (e.g. from
+        // fetchBannerCoverArt while filling missing image/fimage) so
+        // repairScreenshots sees the fullest possible picture and we
+        // don't lose them once we $set the whole images array below.
+        const gameForRepair = newImages.length
+          ? { ...game, images: [...(game.images || []), ...newImages] }
+          : game;
+
+        const shotPatch = await repairScreenshots(gameForRepair);
+        if (shotPatch.images) {
+          update.images = shotPatch.images;
+          // images array now fully replaces via $set — clear newImages
+          // so the save block below doesn't also try to $push them.
+          newImages.length = 0;
+          stats.screenshotsFixed++;
+        }
+      } catch (e) {
+        pushLog("error", `[${game.platform}] "${game.name}" — screenshot error: ${e.message}`);
+        stats.errors++;
+      }
+    }
+
     // ── Save to DB ───────────────────────────────────────────────
     try {
       if (Object.keys(update).length > 0) {
@@ -488,7 +632,8 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
     `${stopReq ? "⏹ Stopped" : "✅ Finished"} — ` +
     `${stats.done}/${stats.total} processed | ` +
     `links:${stats.linksFixed} images:${stats.imagesFixed} ` +
-    `brokenFound:${stats.imageBrokenFound} desc:${stats.descFixed} errors:${stats.errors}`
+    `brokenFound:${stats.imageBrokenFound} desc:${stats.descFixed} ` +
+    `screenshots:${stats.screenshotsFixed} errors:${stats.errors}`
   );
 
   if (!stopReq && deleteNoLink) {
@@ -505,7 +650,7 @@ exports.StartAutoUpdate = async (req, res) => {
   const deleteNoLink = req.body.deleteNoLink === true;
   const targets      = Array.isArray(req.body.targets) && req.body.targets.length
     ? req.body.targets
-    : ["link", "image", "description", "trailer"];
+    : ["link", "image", "description", "trailer", "screenshots"];
   const platform     = req.body.platform  || "both";
   const batchSize    = Number(req.body.batchSize) || 50;
 
@@ -534,17 +679,22 @@ exports.AutoUpdateStatus = (req, res) => {
 
 exports.AutoUpdatePreview = async (req, res) => {
   try {
-    const targets  = Array.isArray(req.body.targets) ? req.body.targets : ["link","image","description","trailer"];
+    const targets  = Array.isArray(req.body.targets) ? req.body.targets : ["link","image","description","trailer","screenshots"];
     const platform = req.body.platform || "both";
     const query    = buildQuery(targets, platform);
     const count    = await games.countDocuments(query);
 
     const pFilter    = platform !== "both" ? { platform } : {};
     const detail = {
-      noLink:    await games.countDocuments({ ...pFilter, $or: [{ link:  { $in: [null,""] } }, { link:  { $exists: false } }] }),
-      noImage:   await games.countDocuments({ ...pFilter, $or: [{ image: { $in: [null,""] } }, { image: { $exists: false } }] }),
-      noDesc:    await games.countDocuments({ ...pFilter, $or: [{ description: { $in: [null,""] } }, { $expr: { $lt: [{ $strLenCP: { $ifNull: ["$description",""] } }, 20] } }] }),
-      noTrailer: await games.countDocuments({ ...pFilter, $or: [{ "trailer.url": { $in: [null,""] } }, { "trailer.url": { $exists: false } }] }),
+      noLink:        await games.countDocuments({ ...pFilter, $or: [{ link:  { $in: [null,""] } }, { link:  { $exists: false } }] }),
+      noImage:       await games.countDocuments({ ...pFilter, $or: [{ image: { $in: [null,""] } }, { image: { $exists: false } }] }),
+      noDesc:        await games.countDocuments({ ...pFilter, $or: [{ description: { $in: [null,""] } }, { $expr: { $lt: [{ $strLenCP: { $ifNull: ["$description",""] } }, 20] } }] }),
+      noTrailer:     await games.countDocuments({ ...pFilter, $or: [{ "trailer.url": { $in: [null,""] } }, { "trailer.url": { $exists: false } }] }),
+      noScreenshots: await games.countDocuments({ ...pFilter, $or: [
+        { images: { $exists: false } },
+        { images: { $size: 0 } },
+        { images: { $not: { $elemMatch: { type: "screenshot" } } } },
+      ] }),
       // imagecheck count = all games with a non-empty image (potential broken URLs)
       hasImage:  await games.countDocuments({ ...pFilter, image: { $exists: true, $ne: "" } }),
     };

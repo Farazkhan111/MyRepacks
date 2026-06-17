@@ -710,6 +710,62 @@ textarea {
   cursor: pointer;
 }
 
+.addgames-shots-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.addgames-shots-box > input {
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  width: 100%;
+}
+
+.addgames-shots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.addgames-shot-thumb {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  aspect-ratio: 16/9;
+}
+
+.addgames-shot-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.addgames-shot-thumb button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.addgames-shot-thumb button:hover { background: rgba(220,60,60,0.85); }
+
 /* 🔷 RESPONSIVE */
 @media (max-width: 992px) {
   .addgames-main-content {
@@ -753,6 +809,11 @@ textarea {
   .addgames-tag {
     font-size: 0.8rem;
     padding: 4px 8px;
+  }
+
+  .addgames-shots-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
   }
 }
 
@@ -1385,6 +1446,15 @@ textarea {
 .ss-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
 .ss-img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); transition: opacity 0.2s; }
 .ss-img:hover { opacity: 0.8; }
+.ss-item { display: flex; flex-direction: column; gap: 6px; }
+.ss-item-selected .ss-img { border-color: rgba(0,200,83,0.5); box-shadow: 0 0 0 2px rgba(0,200,83,0.25); }
+.ss-select-btn {
+  font-size: 11px; font-weight: 600; padding: 6px 8px; border-radius: 7px;
+  border: 1px solid rgba(0,198,255,0.2); background: rgba(0,198,255,0.06);
+  color: rgba(0,198,255,0.8); cursor: pointer; transition: all 0.15s;
+}
+.ss-select-btn:hover { background: rgba(0,198,255,0.14); border-color: rgba(0,198,255,0.4); }
+.ss-select-btn.selected { background: rgba(0,200,83,0.12); border-color: rgba(0,200,83,0.35); color: rgba(0,200,83,0.9); }
 
 /* ── Image Search Panel ── */
 

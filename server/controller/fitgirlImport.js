@@ -14,7 +14,7 @@ const cheerio     = require("cheerio");
 const games       = require("../model/allgamesmodel");
 const ImportState = require("../model/importstate");
 
-const { fetchBannerCoverArt, buildSearchVariants } = require("./helpers");
+const { fetchBannerCoverArt, buildSearchVariants, isJunkScreenshotUrl } = require("./helpers");
 
 const YT_API_KEY  = process.env.YOUTUBE_API_KEY;
 
@@ -203,11 +203,14 @@ async function scrapeFitgirlPost(postUrl) {
       if (src.includes("gravatar")) return;
       if (!/imgur|steam|cloudfront|wp\.com|wordpress|igdb|gog\.com|epicgames|playstation|xbox/i.test(src)
           && !/\.(jpg|jpeg|png|webp)/i.test(src)) return;
+      const alt = $(el).attr("alt") || $(el).attr("title") || "";
+      if (isJunkScreenshotUrl(src, alt)) return; // ignore torrent-stats.info style widgets
       rawImages.push(src);
     });
 
     const imagesArr = [];
     content.find("img").each((_, el) => {
+      const alt = $(el).attr("alt") || $(el).attr("title") || "";
       const srcset = $(el).attr("srcset") || "";
       if (srcset) {
         const candidates = srcset.split(",").map(s => {
@@ -215,13 +218,14 @@ async function scrapeFitgirlPost(postUrl) {
           return { url: u, width: parseInt(w) || 0 };
         });
         candidates.sort((a, b) => b.width - a.width);
-        if (candidates[0]?.url) {
+        if (candidates[0]?.url && !isJunkScreenshotUrl(candidates[0].url, alt)) {
           imagesArr.push(upgradeImageUrl(candidates[0].url));
           return;
         }
+        if (candidates[0]?.url) return; // junk widget — skip, don't fall through to src
       }
       const src = $(el).attr("data-src") || $(el).attr("src") || "";
-      if (src && rawImages.includes(src)) imagesArr.push(upgradeImageUrl(src));
+      if (src && rawImages.includes(src) && !isJunkScreenshotUrl(src, alt)) imagesArr.push(upgradeImageUrl(src));
     });
 
     const seenUrls  = new Set();

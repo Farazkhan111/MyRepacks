@@ -19,12 +19,13 @@ function logIcon(t) {
 const FIX_OPTIONS = [
   { key: "link", label: "🔗 Download Links", desc: "APKPure (Mobile) / FitGirl (PC)" },
   { key: "image", label: "🖼 Images", desc: "Cover + screenshots from IGDB/RAWG" },
+  { key: "screenshots", label: "📸 Screenshots", desc: "Fetch missing or fix broken screenshot links" },
   { key: "description", label: "📝 Descriptions", desc: "Game summary / description text" },
   { key: "trailer", label: "🎬 Trailers", desc: "YouTube official trailer links" },
 ];
 
 export default function AutoUpdate() {
-  const [targets, setTargets] = useState(["link", "image", "description", "trailer"]);
+  const [targets, setTargets] = useState(["link", "image", "screenshots", "description", "trailer"]);
   const [platform, setPlatform] = useState("both");
   const [status, setStatus] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -46,7 +47,7 @@ export default function AutoUpdate() {
           const next = res.data;
           // Flash changed stat counters
           const newFlash = {};
-          ["linksFixed", "imagesFixed", "descFixed"].forEach(k => {
+          ["linksFixed", "imagesFixed", "descFixed", "screenshotsFixed"].forEach(k => {
             if (prev?.stats?.[k] !== next.stats?.[k]) newFlash[k] = true;
           });
           if (Object.keys(newFlash).length) {
@@ -213,6 +214,10 @@ export default function AutoUpdate() {
                       <span className="au-preview-lbl">missing images</span>
                     </div>
                     <div className="au-preview-item">
+                      <span className="au-preview-num">{preview.detail.noScreenshots ?? 0}</span>
+                      <span className="au-preview-lbl">missing screenshots</span>
+                    </div>
+                    <div className="au-preview-item">
                       <span className="au-preview-num">{preview.detail.noDesc}</span>
                       <span className="au-preview-lbl">missing descriptions</span>
                     </div>
@@ -296,6 +301,10 @@ export default function AutoUpdate() {
                 <div className={`au-fix-chip ${flash.descFixed ? "stat-flash" : ""}`}>
                   <span className="au-fix-num">{s.descFixed ?? 0}</span>
                   <span className="au-fix-lbl">Descs Fixed</span>
+                </div>
+                <div className={`au-fix-chip ${flash.screenshotsFixed ? "stat-flash" : ""}`}>
+                  <span className="au-fix-num">{s.screenshotsFixed ?? 0}</span>
+                  <span className="au-fix-lbl">Screenshots Fixed</span>
                 </div>
                 <div className={`au-fix-chip`} style={{ borderColor: s.deleted ? "#ef4444" : undefined }}>
                   <span className="au-fix-num" style={{ color: s.deleted ? "#f87171" : undefined }}>

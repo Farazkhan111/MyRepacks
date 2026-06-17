@@ -89,6 +89,24 @@ export default function ShowGames() {
   });
 
   const someChecked = tableRows.some(g => selected.has(g._id));
+  const allSelected = tableRows.length > 0 && tableRows.every(g => selected.has(g._id));
+
+  const toggleSelectAll = () => {
+    setSelected(prev => {
+      if (allSelected) {
+        // Deselect just the currently-visible rows, keep any selection
+        // from outside the current filter intact.
+        const s = new Set(prev);
+        tableRows.forEach(g => s.delete(g._id));
+        return s;
+      }
+      // Select all currently-visible (filtered) rows, on top of whatever
+      // was already selected.
+      const s = new Set(prev);
+      tableRows.forEach(g => s.add(g._id));
+      return s;
+    });
+  };
 
   const handleBulkDelete = async () => {
     if (selected.size === 0) return;
@@ -180,6 +198,16 @@ export default function ShowGames() {
 
           {/* Filters row */}
           <div className="sg-filters">
+            <label className="sg-select-all">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                disabled={tableRows.length === 0}
+              />
+              <span>Select All</span>
+            </label>
+
             <div className="platform-filter-tabs">
               {[
                 { key: "All",    label: `All (${games.length})` },
@@ -214,6 +242,9 @@ export default function ShowGames() {
           {someChecked && (
             <div className="bulk-toolbar">
               <span>{selected.size} selected</span>
+              {!allSelected && (
+                <button className="bulk-selectall-btn" onClick={toggleSelectAll}>Select all {tableRows.length}</button>
+              )}
               <button className="bulk-delete-btn" onClick={handleBulkDelete} disabled={bulkDeleting}>
                 {bulkDeleting ? "Deleting…" : `🗑 Delete (${selected.size})`}
               </button>

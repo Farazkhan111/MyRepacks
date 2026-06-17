@@ -16,6 +16,8 @@ export default function AddGames() {
   const [gplatform,    setPlatform]  = useState("PC");
   const [gvideo,       setVideo]     = useState("");
   const [othername,    setOthername] = useState([]);
+  const [gscreenshots, setScreenshots] = useState([]);   // screenshot URLs to save with the game
+  const [currentShot,  setCurrentShot] = useState("");
   const [gtrend,       setTrend]     = useState("");
   const [currentAlias, setAlias]     = useState("");
   const [autoFilled,   setAutoFilled]= useState(false);
@@ -39,6 +41,7 @@ export default function AddGames() {
         if (d.glink)     setLink(d.glink);
         if (d.gvideo)    setVideo(d.gvideo);   // ← trailer URL from scraper
         if (Array.isArray(d.othername)) setOthername(d.othername);
+        if (Array.isArray(d.gscreenshots)) setScreenshots(d.gscreenshots);   // ← screenshots from scraper
         setAutoFilled(true);
         // ⚠️ Do NOT remove scraped_game here — keep it so Back button restores scraper state
       } catch (e) { console.error(e); }
@@ -47,7 +50,7 @@ export default function AddGames() {
 
   async function addgame(e) {
     e.preventDefault();
-    await axios.post(`${API}/add`, { gname, gimage, gdes, gcat, gplatform, gfimage, glink, gtrend, gvideo, othername });
+    await axios.post(`${API}/add`, { gname, gimage, gdes, gcat, gplatform, gfimage, glink, gtrend, gvideo, othername, gscreenshots });
     // Only clear scraper data after the game is successfully saved to DB
     sessionStorage.removeItem("scraped_game");
     nav("/show");
@@ -118,6 +121,33 @@ export default function AddGames() {
             <div className="input-with-preview">
               <input placeholder="Hero Image URL (landscape)" value={gfimage} onChange={e => setFimage(e.target.value)} />
               {gfimage && <img src={gfimage} alt="hero" className="img-preview img-preview-landscape" onError={e => e.target.style.display="none"} />}
+            </div>
+
+            {/* Screenshots */}
+            <div className="addgames-shots-box">
+              <input
+                placeholder="Add screenshot URL (press Enter)..."
+                value={currentShot}
+                onChange={e => setCurrentShot(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const v = currentShot.trim();
+                    if (v && !gscreenshots.includes(v)) setScreenshots([...gscreenshots, v]);
+                    setCurrentShot("");
+                  }
+                }}
+              />
+              {gscreenshots.length > 0 && (
+                <div className="addgames-shots-grid">
+                  {gscreenshots.map((src, i) => (
+                    <div key={i} className="addgames-shot-thumb">
+                      <img src={src} alt={`Screenshot ${i + 1}`} onError={e => (e.target.parentElement.style.display = "none")} />
+                      <button type="button" onClick={() => setScreenshots(gscreenshots.filter((_, idx) => idx !== i))}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* ── Video URL + live preview ── */}

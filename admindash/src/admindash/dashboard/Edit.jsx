@@ -18,6 +18,8 @@ export default function Edit() {
   const [gvideo,    setVideo]   = useState("");
   const [othername, setOther]   = useState([]);
   const [alias,     setAlias]   = useState("");
+  const [gscreenshots, setScreenshots] = useState([]);   // screenshot URLs
+  const [currentShot,  setCurrentShot] = useState("");
 
   const nav = useNavigate();
   const loc = useLocation();
@@ -38,12 +40,17 @@ export default function Edit() {
       setLink(g.link || "");
       setVideo(g.video || "");
       setOther(g.othername || []);
+      setScreenshots(
+        Array.isArray(g.images)
+          ? g.images.filter(i => i.type === "screenshot" && i.url).map(i => i.url)
+          : []
+      );
     });
   }, [id, nav]);
 
   function update(e) {
     e.preventDefault();
-    axios.post(`${API}/gupdate`, { id, gname, gimage, gfimage, gdes, gcat, gplatform, gtrend, glink, gvideo, othername });
+    axios.post(`${API}/gupdate`, { id, gname, gimage, gfimage, gdes, gcat, gplatform, gtrend, glink, gvideo, othername, gscreenshots });
     nav("/show");
   }
 
@@ -83,6 +90,33 @@ export default function Edit() {
             <div className="input-with-preview">
               <input placeholder="Hero Image URL" value={gfimage} onChange={e => setFimage(e.target.value)} />
               {gfimage && <img src={gfimage} alt="hero" className="img-preview img-preview-landscape" onError={e => e.target.style.display="none"} />}
+            </div>
+
+            {/* Screenshots */}
+            <div className="addgames-shots-box">
+              <input
+                placeholder="Add screenshot URL (press Enter)..."
+                value={currentShot}
+                onChange={e => setCurrentShot(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const v = currentShot.trim();
+                    if (v && !gscreenshots.includes(v)) setScreenshots([...gscreenshots, v]);
+                    setCurrentShot("");
+                  }
+                }}
+              />
+              {gscreenshots.length > 0 && (
+                <div className="addgames-shots-grid">
+                  {gscreenshots.map((src, i) => (
+                    <div key={i} className="addgames-shot-thumb">
+                      <img src={src} alt={`Screenshot ${i + 1}`} onError={e => (e.target.parentElement.style.display = "none")} />
+                      <button type="button" onClick={() => setScreenshots(gscreenshots.filter((_, idx) => idx !== i))}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <input placeholder="Video URL" value={gvideo} onChange={e => setVideo(e.target.value)} />
