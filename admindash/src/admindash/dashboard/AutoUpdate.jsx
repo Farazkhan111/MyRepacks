@@ -17,15 +17,16 @@ function logIcon(t) {
 }
 
 const FIX_OPTIONS = [
-  { key: "link", label: "🔗 Download Links", desc: "APKPure (Mobile) / FitGirl (PC)" },
-  { key: "image", label: "🖼 Images", desc: "Cover + screenshots from IGDB/RAWG" },
-  { key: "screenshots", label: "📸 Screenshots", desc: "Fetch missing or fix broken screenshot links" },
-  { key: "description", label: "📝 Descriptions", desc: "Game summary / description text" },
-  { key: "trailer", label: "🎬 Trailers", desc: "YouTube official trailer links" },
+  { key: "link",        label: "🔗 Download Links",  desc: "APKPure (Mobile) / FitGirl (PC)" },
+  { key: "image",       label: "🖼 Images",           desc: "Cover + screenshots from IGDB/RAWG" },
+  { key: "screenshots", label: "📸 Screenshots",      desc: "Fetch missing or fix broken screenshot links" },
+  { key: "description", label: "📝 Descriptions",     desc: "Game summary / description text" },
+  { key: "trailer",     label: "🎬 Trailers",         desc: "YouTube official trailer links" },
+  { key: "aliases",     label: "🔤 Aliases",          desc: "Alternative search names (othername field)" },
 ];
 
 export default function AutoUpdate() {
-  const [targets, setTargets] = useState(["link", "image", "screenshots", "description", "trailer"]);
+  const [targets, setTargets] = useState(["link", "image", "screenshots", "description", "trailer", "aliases"]);
   const [platform, setPlatform] = useState("both");
   const [status, setStatus] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -47,7 +48,7 @@ export default function AutoUpdate() {
           const next = res.data;
           // Flash changed stat counters
           const newFlash = {};
-          ["linksFixed", "imagesFixed", "descFixed", "screenshotsFixed"].forEach(k => {
+          ["linksFixed", "imagesFixed", "descFixed", "screenshotsFixed", "aliasesFixed"].forEach(k => {
             if (prev?.stats?.[k] !== next.stats?.[k]) newFlash[k] = true;
           });
           if (Object.keys(newFlash).length) {
@@ -225,6 +226,10 @@ export default function AutoUpdate() {
                       <span className="au-preview-num">{preview.detail.noTrailer}</span>
                       <span className="au-preview-lbl">missing trailers</span>
                     </div>
+                    <div className="au-preview-item">
+                      <span className="au-preview-num">{preview.detail.noAliases ?? 0}</span>
+                      <span className="au-preview-lbl">missing aliases</span>
+                    </div>
                   </div>
                 ) : (
                   <p style={{ color: "#555", fontSize: 13 }}>Loading preview…</p>
@@ -306,6 +311,10 @@ export default function AutoUpdate() {
                   <span className="au-fix-num">{s.screenshotsFixed ?? 0}</span>
                   <span className="au-fix-lbl">Screenshots Fixed</span>
                 </div>
+                <div className={`au-fix-chip ${flash.aliasesFixed ? "stat-flash" : ""}`}>
+                  <span className="au-fix-num">{s.aliasesFixed ?? 0}</span>
+                  <span className="au-fix-lbl">Aliases Fixed</span>
+                </div>
                 <div className={`au-fix-chip`} style={{ borderColor: s.deleted ? "#ef4444" : undefined }}>
                   <span className="au-fix-num" style={{ color: s.deleted ? "#f87171" : undefined }}>
                   {s.deleted ?? 0}</span>
@@ -385,6 +394,7 @@ export default function AutoUpdate() {
               <li>For <strong>Mobile games</strong>: fetches images &amp; descriptions from IGDB, download links from APKPure</li>
               <li>For <strong>PC games</strong>: fetches images &amp; descriptions from RAWG, torrent/magnet links from FitGirl</li>
               <li>Trailers are searched on YouTube for both platforms</li>
+              <li><strong>Aliases</strong> are fetched from RAWG, IGDB, Steam, and Play Store — alternative/regional names people use to search for the game, saved to the <code>othername</code> field</li>
               <li>Only missing fields are updated — existing data is never overwritten</li>
               <li>A 1.5 s delay between games prevents API rate-limiting</li>
             </ul>

@@ -10,6 +10,7 @@ const {
   fetchRAWGData,
   fetchBannerCoverArt,
   buildSearchVariants,
+  fetchGameAliases,    // ← collects all known alternative search names
   checkImageUrl,       // ← tests if a stored URL is still alive
   fetchApkPureIcon,    // ← fetches hotlink-safe icon from APKPure CDN
   isJunkScreenshotUrl, // ← detects torrent-stats.info style widget images
@@ -33,17 +34,26 @@ function pushLog(type, msg) {
 // ── Stats counters ────────────────────────────────────────────────
 let stats = {
   total: 0, done: 0,
-  linksFixed: 0, imagesFixed: 0, imageBrokenFound: 0,
+  linksFixed: 0, imagesFixed: 0, imageBrokenFound: 0, aliasesFixed: 0,
   descFixed: 0, screenshotsFixed: 0, errors: 0, deleted: 0,
 };
 
 // ── What counts as "missing" ──────────────────────────────────────
-function needsLink(g)        { return !g.link        || g.link.trim().length        < 5; }
+function needsLink(g) {
+  if (!g.link || g.link.trim().length < 5) return true;
+  // Treat bare FitGirl site URLs as missing — they're the old fallback, not real download links
+  try {
+    const h = new URL(g.link.trim()).hostname.toLowerCase();
+    if (h.includes("fitgirl-repacks.site") || h.includes("fitgirl-repacks.ru")) return true;
+  } catch (_) {}
+  return false;
+}
 function needsImage(g)       { return !g.image       || g.image.trim().length       < 5; }
 function needsFimage(g)      { return !g.fimage      || g.fimage.trim().length      < 5; }
 function needsDescription(g) { return !g.description || g.description.trim().length < 20; }
 function needsTrailer(g)     { return !g.trailer?.url && (!g.video || g.video.trim().length < 5); }
 function needsScreenshots(g) { return !Array.isArray(g.images) || g.images.filter(i => i.type === "screenshot").length === 0; }
+function needsAliases(g)     { return !Array.isArray(g.othername) || g.othername.length === 0; }
 
 // ══════════════════════════════════════════════════════════════════
 //  IMAGE HEALTH CHECK + REPAIR
@@ -283,6 +293,12 @@ function buildQuery(targets, platform) {
       { images: { $not: { $elemMatch: { type: "screenshot" } } } }
     );
 
+  if (targets.includes("aliases"))
+    or.push(
+      { othername: { $exists: false } },
+      { othername: { $size: 0 } }
+    );
+
   // "imagecheck" target: fetch ALL games (even those with images)
   // so we can validate the URLs. We use a separate query below.
   const q = or.length ? { $or: or } : {};
@@ -325,19 +341,19 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
     ];
     allGames = await games
       .find(q)
-      .select("_id name platform image fimage description link video trailer images externalId")
+      .select("_id name platform image fimage description link video trailer images othername externalId")
       .lean();
   } else {
     const query = buildQuery(targets, platform);
     allGames = await games
       .find(query)
-      .select("_id name platform image fimage description link video trailer images externalId")
+      .select("_id name platform image fimage description link video trailer images othername externalId")
       .lean();
   }
 
   stats = {
     total: allGames.length, done: 0,
-    linksFixed: 0, imagesFixed: 0, imageBrokenFound: 0,
+    linksFixed: 0, imagesFixed: 0, imageBrokenFound: 0, aliasesFixed: 0,
     descFixed: 0, screenshotsFixed: 0, errors: 0, deleted: 0,
   };
 
@@ -603,8 +619,66 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
       }
     }
 
+    if (stopReq) break;
+
+    // ── 6. Aliases (othername) ────────────────────────────────────
+    if (targets.includes("aliases") && needsAliases(game)) {
+      currentGame.step = "fetching aliases…";
+      pushLog("info", `[${game.platform}] "${game.name}" — fetching aliases…`);
+      try {
+        const aliases = await fetchGameAliases(game.name, game.platform);
+        if (aliases.length > 0) {
+          // Merge with any existing names (game.othername may have been populated earlier)
+          const existing = new Set((game.othername || []).map(n => n.toLowerCase()));
+          const fresh    = aliases.filter(n => !existing.has(n.toLowerCase()));
+          if (fresh.length > 0) {
+            await games.updateOne(
+              { _id: game._id },
+              { $push: { othername: { $each: fresh } } }
+            );
+            stats.aliasesFixed = (stats.aliasesFixed || 0) + 1;
+            pushLog("success", `[${game.platform}] "${game.name}" — aliases ✅ (${fresh.length} added: ${fresh.slice(0, 3).join(", ")}${fresh.length > 3 ? "…" : ""})`);
+          } else {
+            pushLog("info", `[${game.platform}] "${game.name}" — aliases already up to date`);
+          }
+        } else {
+          pushLog("warn", `[${game.platform}] "${game.name}" — no aliases found`);
+        }
+      } catch (e) {
+        pushLog("error", `[${game.platform}] "${game.name}" — alias error: ${e.message}`);
+        stats.errors++;
+      }
+    }
+
     // ── Save to DB ───────────────────────────────────────────────
     try {
+      // ✅ Always ensure video entries sit at the front of the images array
+      // before saving — covers both full replacements and partial updates.
+      function prioritiseVideos(arr) {
+        if (!Array.isArray(arr) || arr.length === 0) return arr;
+        const isVideo = url => /youtube\.com|youtu\.be|vimeo\.com|\.mp4|\.webm|\.mov|\/video\//i.test(url || "");
+        const videos = arr.filter(i => isVideo(i.url) || i.type === "video");
+        const stills = arr.filter(i => !isVideo(i.url) && i.type !== "video");
+        videos.forEach(v => { v.type = "video"; });
+        return [...videos, ...stills];
+      }
+
+      // Also prepend any newly fetched trailer into the images array
+      if (update.trailer?.url || update.video) {
+        const trailerUrl = update.trailer?.url || update.video;
+        const baseImages = update.images || game.images || [];
+        const alreadyHas = baseImages.some(i => i.url === trailerUrl);
+        if (!alreadyHas) {
+          const trailerEntry = { type: "video", url: trailerUrl, source: "youtube" };
+          update.images = prioritiseVideos([trailerEntry, ...baseImages]);
+          newImages.length = 0; // absorbed into update.images
+        } else if (update.images) {
+          update.images = prioritiseVideos(update.images);
+        }
+      } else if (update.images) {
+        update.images = prioritiseVideos(update.images);
+      }
+
       if (Object.keys(update).length > 0) {
         await games.updateOne({ _id: game._id }, { $set: update });
       }
@@ -633,7 +707,7 @@ async function runAutoUpdate({ targets, platform, batchSize, deleteNoLink }) {
     `${stats.done}/${stats.total} processed | ` +
     `links:${stats.linksFixed} images:${stats.imagesFixed} ` +
     `brokenFound:${stats.imageBrokenFound} desc:${stats.descFixed} ` +
-    `screenshots:${stats.screenshotsFixed} errors:${stats.errors}`
+    `screenshots:${stats.screenshotsFixed} aliases:${stats.aliasesFixed} errors:${stats.errors}`
   );
 
   if (!stopReq && deleteNoLink) {
@@ -694,6 +768,10 @@ exports.AutoUpdatePreview = async (req, res) => {
         { images: { $exists: false } },
         { images: { $size: 0 } },
         { images: { $not: { $elemMatch: { type: "screenshot" } } } },
+      ] }),
+      noAliases:     await games.countDocuments({ ...pFilter, $or: [
+        { othername: { $exists: false } },
+        { othername: { $size: 0 } },
       ] }),
       // imagecheck count = all games with a non-empty image (potential broken URLs)
       hasImage:  await games.countDocuments({ ...pFilter, image: { $exists: true, $ne: "" } }),

@@ -18,7 +18,7 @@ require("dotenv").config();
 const axios   = require("axios");
 const cheerio = require("cheerio");
 const games   = require("../model/allgamesmodel");
-const { fetchBannerCoverArt } = require("./helpers");
+const { fetchBannerCoverArt, fetchGameAliases } = require("./helpers");
 
 const LOOP_DELAY = 3500;
 const GAME_DELAY = 2000;
@@ -465,6 +465,19 @@ async function upsertPaidGame(doc) {
     if (!existing.description && doc.description) patch.description = doc.description;
     if (doc.price) patch.price = doc.price;
     await games.updateOne({ _id: existing._id }, { $set: patch });
+
+    // ✅ Merge othername aliases
+    if (doc.othername?.length) {
+      const existingNames = new Set((existing.othername || []).map(n => n.toLowerCase()));
+      const newNames = doc.othername.filter(n => !existingNames.has(n.toLowerCase()));
+      if (newNames.length > 0) {
+        await games.updateOne(
+          { _id: existing._id },
+          { $push: { othername: { $each: newNames } } }
+        );
+      }
+    }
+
     return "updated";
   }
 
@@ -533,15 +546,24 @@ async function runPaidPlayStoreLoop() {
           const trailerUrl = await fetchYouTubeTrailer(meta.name);
           if (trailerUrl) paidLog("info", `🎬 Trailer: ${trailerUrl}`);
 
+          paidCurrentGame.step = "fetching aliases";
+          const othername = await fetchGameAliases(meta.name, "Mobile");
+
           const category = mapMobileCategory(meta.genre);
 
           const imagesArr = [];
+          // ✅ Video first — trailer at the front of the images list
+          if (trailerUrl) {
+            imagesArr.push({ type: "video", url: trailerUrl, source: "youtube" });
+          }
           if (iconUrl) imagesArr.push({ type: "cover",      url: iconUrl, source: "playstore_paid" });
           if (heroUrl && heroUrl !== iconUrl)
                         imagesArr.push({ type: "background", url: heroUrl, source: "playstore_paid" });
-          meta.psScreenshots.forEach(url =>
-            imagesArr.push({ type: "screenshot", url, source: "playstore_paid" })
-          );
+          // Screenshots — video URLs go before stills
+          const ssVideos = meta.psScreenshots.filter(u => /youtube\.com|youtu\.be|\.mp4|\.webm/i.test(u));
+          const ssStills = meta.psScreenshots.filter(u => !/youtube\.com|youtu\.be|\.mp4|\.webm/i.test(u));
+          ssVideos.forEach(url => imagesArr.push({ type: "video",      url, source: "playstore_paid" }));
+          ssStills.forEach(url => imagesArr.push({ type: "screenshot", url, source: "playstore_paid" }));
 
           const doc = {
             name:          meta.name,
@@ -560,6 +582,7 @@ async function runPaidPlayStoreLoop() {
             link:          downloadUrl,
             video:         trailerUrl || "",
             images:        imagesArr,
+            othername,                              // ✅ all known aliases
             importSource:  "playstore_paid",
             externalId:    pkgId,
             isPaid:        true,

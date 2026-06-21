@@ -11,7 +11,7 @@ require("dotenv").config();
 const axios   = require("axios");
 const cheerio = require("cheerio");
 const games   = require("../model/allgamesmodel");
-const { fetchBannerCoverArt } = require("./helpers");
+const { fetchBannerCoverArt, fetchGameAliases } = require("./helpers");
 
 const LOOP_DELAY = 3000;
 const GAME_DELAY = 1500;
@@ -306,7 +306,8 @@ async function fetchYouTubeTrailer(gameName, platform = "Mobile") {
 // ══════════════════════════════════════════════════════════════════
 
 function buildChartUrl(startIndex) {
-  return `https://play.google.com/store/games?hl=en&gl=US&start=${startIndex}&num=24`;
+  // Use the Top Free Games chart — ordered by popularity (installs/ratings)
+  return `https://play.google.com/store/games/top-free?hl=en&gl=US&start=${startIndex}&num=24`;
 }
 
 async function scrapeChartPage(startIndex) {
@@ -455,6 +456,19 @@ async function upsertPlayStoreGame(doc) {
     if (!existing.fimage || existing.fimage.trim().length < 5) patch.fimage = doc.fimage;
     if (!existing.description && doc.description) patch.description = doc.description;
     await games.updateOne({ _id: existing._id }, { $set: patch });
+
+    // ✅ Merge othername aliases
+    if (doc.othername?.length) {
+      const existingNames = new Set((existing.othername || []).map(n => n.toLowerCase()));
+      const newNames = doc.othername.filter(n => !existingNames.has(n.toLowerCase()));
+      if (newNames.length > 0) {
+        await games.updateOne(
+          { _id: existing._id },
+          { $push: { othername: { $each: newNames } } }
+        );
+      }
+    }
+
     return "updated";
   }
 
@@ -523,13 +537,22 @@ async function runPlayStoreLoop() {
             psLog("warn", `Trailer fetch failed: ${e.message}`);
           }
 
+          psCurrentGame.step = "fetching aliases";
+          const othername = await fetchGameAliases(meta.name, "Mobile");
+
           const imagesArr = [];
+          // ✅ Video first — trailer at the front of the images list
+          if (trailerUrl) {
+            imagesArr.push({ type: "video", url: trailerUrl, source: "youtube" });
+          }
           if (iconUrl) imagesArr.push({ type: "cover",      url: iconUrl, source: "playstore" });
           if (heroUrl && heroUrl !== iconUrl)
                         imagesArr.push({ type: "background", url: heroUrl, source: "playstore" });
-          meta.psScreenshots.forEach(url =>
-            imagesArr.push({ type: "screenshot", url, source: "playstore" })
-          );
+          // Screenshots — video URLs (e.g. Play Store promo video) go before stills
+          const ssVideos = meta.psScreenshots.filter(u => /youtube\.com|youtu\.be|\.mp4|\.webm/i.test(u));
+          const ssStills = meta.psScreenshots.filter(u => !/youtube\.com|youtu\.be|\.mp4|\.webm/i.test(u));
+          ssVideos.forEach(url => imagesArr.push({ type: "video",      url, source: "playstore" }));
+          ssStills.forEach(url => imagesArr.push({ type: "screenshot", url, source: "playstore" }));
 
           const doc = {
             name:          meta.name,
@@ -548,6 +571,7 @@ async function runPlayStoreLoop() {
             link:          downloadUrl,
             video:         trailerUrl || "",
             images:        imagesArr,
+            othername,                              // ✅ all known aliases
             importSource:  "playstore",
             externalId:    pkgId,
             lastImportedAt: new Date(),

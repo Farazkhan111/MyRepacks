@@ -1346,9 +1346,9 @@ body.cyber-cursor-active * { cursor: none !important; }
    ============================================================ */
 .gp-page { min-height: 100vh; padding-bottom: 80px; }
 .gp-hero { position: relative; height: 420px; overflow: hidden; }
-.gp-hero-bg { position: absolute; inset: -20px; background-size: cover; background-position: center; filter: blur(8px) brightness(0.35); transform: scale(1.05); }
-.gp-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(7,7,15,0.2) 0%, rgba(7,7,15,0.6) 60%, rgba(7,7,15,1) 100%); }
-.gp-hero-scanlines { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px); pointer-events: none; }
+.gp-hero-bg { position: absolute; inset: -20px; background-size: cover; background-position: center; filter: blur(8px) brightness(0.35); transform: scale(1.05); z-index: 0; }
+.gp-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(7,7,15,0.2) 0%, rgba(7,7,15,0.6) 60%, rgba(7,7,15,1) 100%); z-index: 2; }
+.gp-hero-scanlines { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px); pointer-events: none; z-index: 3; }
 .gp-main { max-width: 860px; margin: -120px auto 0; padding: 0 24px; position: relative; z-index: 2; }
 .gp-identity-row { display: flex; gap: 28px; align-items: flex-end; margin-bottom: 32px; }
 .gp-cover-img { width: 140px; height: 190px; object-fit: cover; border-radius: 12px; border: 2px solid rgba(0,229,255,0.25); box-shadow: 0 20px 50px rgba(0,0,0,0.6); flex-shrink: 0; }
@@ -1533,4 +1533,107 @@ body.cyber-cursor-active * { cursor: none !important; }
   .game-card, .col-card { animation: cardFadeIn 0.4s ease both; }
   /* Disable border race on mobile for performance */
   .game-card::before, .col-card::before { display: none; }
+}
+/* ================================================================
+   GAMEPAGE — TRAILER HERO + DYNAMIC COLOUR SYSTEM
+   ================================================================ */
+
+/* ── Ambient orbs (behind everything) ──────────────────────────── */
+.gp-ambient {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.gp-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  animation: gp-orb-drift 12s ease-in-out infinite alternate;
+}
+.gp-orb-1 {
+  width: 500px; height: 500px;
+  top: -100px; left: -80px;
+  animation-delay: 0s;
+}
+.gp-orb-2 {
+  width: 400px; height: 400px;
+  bottom: 10%; right: -60px;
+  animation-delay: -5s;
+  animation-direction: alternate-reverse;
+}
+@keyframes gp-orb-drift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(40px, 30px) scale(1.12); }
+}
+
+/* ── Trailer wrapper — purely decorative background, same as fimage ── */
+/* ALL trailer layers use z-index 0 so gp-main (z-index 2) sits on top */
+.gp-trailer-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.gp-trailer-iframe {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* over-size to hide YouTube letterbox bars */
+  width: 177.78vh;
+  height: 100vh;
+  min-width: 100%;
+  min-height: 100%;
+  transform: translate(-50%, -50%);
+  border: none;
+  pointer-events: none;
+}
+/* Blur + darken over the video — same treatment as gp-hero-bg */
+.gp-trailer-blur-overlay {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(8px) brightness(0.32);
+  -webkit-backdrop-filter: blur(8px) brightness(0.32);
+  z-index: 1;
+}
+
+/* ── Cover image neon border glow ───────────────────────────────── */
+.gp-cover-img {
+  transition: box-shadow 0.6s ease, border-color 0.6s ease;
+}
+
+/* ── Screenshot thumb — use CSS var for dynamic hover ───────────── */
+.gp-shot-thumb:hover {
+  border-color: var(--thumb-hover-border, rgba(0,229,255,0.4));
+}
+
+/* ── Neon glow strip at hero bottom edge ────────────────────────── */
+.gp-hero-glow-strip {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 120px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* ── Download button dynamic colours ────────────────────────────── */
+.gp-dl-btn {
+  transition: all 0.25s ease;
+}
+.gp-dl-btn:hover {
+  filter: brightness(1.15);
+  transform: translateY(-2px) scale(1.03);
+}
+
+/* ── Mobile adjustments ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .gp-trailer-iframe {
+    width: 177.78vw;
+    height: 56.25vw;
+    min-height: 280px;
+  }
+  .gp-orb-1 { width: 260px; height: 260px; }
+  .gp-orb-2 { width: 200px; height: 200px; }
 }

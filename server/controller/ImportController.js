@@ -137,10 +137,19 @@ async function scrapeFitgirlTorrent(pageUrl) {
     });
 
     // 1. Magnet link (best — works without a torrent client download step)
-    const magnetMatch = html.match(/magnet:\?[^\s"'<>]+/);
-    if (magnetMatch) return magnetMatch[0];
+    const magnetMatch = html.match(/magnet:\?xt=urn:btih:[A-Fa-f0-9]{40,}[^\s"'<>]*/);
+    if (magnetMatch) return decodeURIComponent(magnetMatch[0]);
 
     const $ = cheerio.load(html);
+
+    // 1b. Magnet in <a href> (catches onclick/JS-injected variants)
+    let magnetHref = null;
+    $("a[href]").each((_, el) => {
+      if (magnetHref) return;
+      const href = ($(el).attr("href") || "").trim();
+      if (href.startsWith("magnet:")) magnetHref = decodeURIComponent(href);
+    });
+    if (magnetHref) return magnetHref;
 
     // 2. Direct .torrent file link
     let torrentFile = null;
@@ -387,12 +396,131 @@ async function fetchYouTubeTrailer(gameName, platform) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+//  VIDEO-PRIORITY HELPER
+//  If any screenshot URL is actually a video (YouTube embed, .mp4,
+//  webm, etc.), move it to the front of the images array so it
+//  renders before static screenshots.
+// ══════════════════════════════════════════════════════════════════
+
+function prioritiseVideos(imagesArr) {
+  const isVideo = url =>
+    /youtube\.com|youtu\.be|vimeo\.com|\.mp4|\.webm|\.mov|\/video\//i.test(url || "");
+
+  const videos = imagesArr.filter(i => isVideo(i.url));
+  const stills = imagesArr.filter(i => !isVideo(i.url));
+
+  // Re-tag video entries so the client can render them correctly
+  videos.forEach(v => { v.type = "video"; });
+
+  return [...videos, ...stills];
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  ALIAS FETCHER  (othername field)
+//  Collects all known alternative / search names for a game.
+//  Returns: string[]  (never throws — always resolves with [])
+// ══════════════════════════════════════════════════════════════════
+
+async function fetchGameAliases(gameName, platform = "PC") {
+  const seen  = new Set([gameName.toLowerCase().trim()]);
+  const names = [];
+
+  function add(raw) {
+    if (!raw || typeof raw !== "string") return;
+    const v = raw.trim();
+    if (!v || v.length < 2) return;
+    const key = v.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    names.push(v);
+  }
+
+  // Derived variants (no API)
+  const subSplit = gameName.split(/\s*[–:]\s*/);
+  if (subSplit.length > 1) add(subSplit[0].trim());
+  const noTrail = gameName.replace(/\s+[IVX\d]+$/, "").trim();
+  if (noTrail !== gameName) add(noTrail);
+  const words = gameName.split(/\s+/).filter(w => w.length > 2);
+  if (words.length >= 3) {
+    const abbr = words.map(w => w[0].toUpperCase()).join("");
+    if (abbr.length >= 3) add(abbr);
+  }
+
+  // RAWG alternative_names
+  try {
+    const sr = await axios.get("https://api.rawg.io/api/games", {
+      params: { key: RAWG_KEY, search: gameName, page_size: 3 },
+      timeout: 8000,
+    });
+    const match = (sr.data?.results || []).find(g =>
+      g.name?.toLowerCase().includes(gameName.toLowerCase().slice(0, 8))
+    );
+    if (match) {
+      const detail = await axios.get(`https://api.rawg.io/api/games/${match.id}`, {
+        params: { key: RAWG_KEY }, timeout: 8000,
+      });
+      (detail.data?.alternative_names || []).forEach(n => add(n));
+      if (detail.data?.name_original) add(detail.data.name_original);
+    }
+  } catch (_) {}
+
+  // IGDB alternative_names
+  try {
+    const token = await getIGDBToken();
+    const sr = await axios.post(
+      "https://api.igdb.com/v4/games",
+      `fields name,alternative_names.name; search "${gameName.replace(/"/g, "")}"; limit 3;`,
+      {
+        headers: { "Client-ID": IGDB_CLIENT_ID, Authorization: `Bearer ${token}`, "Content-Type": "text/plain" },
+        timeout: 8000,
+      }
+    );
+    const igdbMatch = (sr.data || []).find(g =>
+      g.name?.toLowerCase().includes(gameName.toLowerCase().slice(0, 8))
+    );
+    if (igdbMatch) (igdbMatch.alternative_names || []).forEach(an => add(an.name));
+  } catch (_) {}
+
+  // Steam search title
+  try {
+    const sr = await axios.get(
+      `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`,
+      { timeout: 8000 }
+    );
+    const steamMatch = (sr.data?.items || []).find(i =>
+      i.name?.toLowerCase().includes(gameName.toLowerCase().slice(0, 8))
+    );
+    if (steamMatch && steamMatch.name !== gameName) add(steamMatch.name);
+  } catch (_) {}
+
+  // Google Play (Mobile only)
+  if (platform === "Mobile") {
+    try {
+      const pr = await axios.get(
+        `https://play.google.com/store/search?q=${encodeURIComponent(gameName)}&c=apps&hl=en`,
+        { headers: BROWSER_HEADERS, timeout: 8000 }
+      );
+      const ogMatch = pr.data.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i);
+      if (ogMatch?.[1]) add(ogMatch[1].replace(/ - Apps on Google Play/i, "").trim());
+    } catch (_) {}
+  }
+
+  return names;
+}
+
+// ══════════════════════════════════════════════════════════════════
 //  RAWG — PC GAMES
 // ══════════════════════════════════════════════════════════════════
 
 async function fetchRAWGPage(page) {
   const res = await axios.get("https://api.rawg.io/api/games", {
-    params: { key: RAWG_KEY, page, page_size: PAGE_SIZE, ordering: "-added" },
+    params: {
+      key: RAWG_KEY,
+      page,
+      page_size: PAGE_SIZE,
+      ordering: "-metacritic",   // most popular (highest Metacritic score) first
+      metacritic: "1,100",       // only games with a Metacritic score (filters to well-known titles)
+    },
     timeout: 10000,
   });
   return res.data?.results || [];
@@ -428,15 +556,23 @@ async function mapRAWGGame(rawg) {
   // YouTube trailer
   const trailer = await fetchYouTubeTrailer(rawg.name, "PC");
 
+  // Add trailer as a video entry at the front of images if available
+  if (trailer?.url) {
+    imagesArr.unshift({ type: "video", url: trailer.url, source: "youtube" });
+  }
+
+  // ✅ Fetch alternative/search names for this game
+  const othername = await fetchGameAliases(rawg.name, "PC");
+
   // ✅ Proper category mapping
   const category = mapCategory(genres, "PC");
 
   return {
     name:          rawg.name,
-    image:         coverUrl,          // original RAWG cover — preserved
-    fimage:        heroUrl,           // RAWG hero/background image
-    description:   "",                // RAWG list endpoint has no description
-    category,                         // ✅ properly mapped
+    image:         coverUrl,
+    fimage:        heroUrl,
+    description:   "",
+    category,
     platform:      "PC",
     genre:         genres,
     developer:     "",
@@ -445,10 +581,11 @@ async function mapRAWGGame(rawg) {
     rating:        rawg.rating ? Math.round(rawg.rating * 10) / 10 : null,
     platforms,
     trending:      "Not Trending",
-    link:          torrentLink || "", // ✅ real FitGirl magnet/torrent link
+    link:          torrentLink || "",
     video:         trailer?.url  || "",
     trailer:       trailer || undefined,
-    images:        imagesArr,
+    images:        prioritiseVideos(imagesArr),
+    othername,                              // ✅ all known aliases
     importSource:  "rawg",
     externalId:    String(rawg.id),
     lastImportedAt: new Date(),
@@ -465,8 +602,8 @@ async function fetchIGDBMobilePage(offset) {
     "https://api.igdb.com/v4/games",
     `fields name,summary,genres.name,first_release_date,involved_companies.company.name,
      rating,platforms.name,cover.url,screenshots.url;
-     where platforms = (34,39);
-     sort first_release_date desc;
+     where platforms = (34,39) & rating != null & rating_count > 5;
+     sort rating desc;
      limit ${PAGE_SIZE};
      offset ${offset};`,
     {
@@ -517,15 +654,23 @@ async function mapIGDBGame(igdb) {
   // YouTube trailer
   const trailer = await fetchYouTubeTrailer(igdb.name, "Mobile");
 
+  // Add trailer as a video entry at the front of images if available
+  if (trailer?.url) {
+    imagesArr.unshift({ type: "video", url: trailer.url, source: "youtube" });
+  }
+
+  // ✅ Fetch alternative/search names for this game
+  const othername = await fetchGameAliases(igdb.name, "Mobile");
+
   // ✅ Proper mobile category mapping
   const category = mapCategory(genres, "Mobile");
 
   return {
     name:          igdb.name,
-    image:         rawCover,                       // original IGDB cover — preserved
-    fimage:        imagesArr[1]?.url || rawCover,  // screenshot as hero if available
+    image:         rawCover,
+    fimage:        imagesArr.find(i => i.type === "screenshot")?.url || rawCover,
     description:   igdb.summary || "",
-    category,                                      // ✅ properly mapped
+    category,
     platform:      "Mobile",
     genre:         genres,
     developer:     dev,
@@ -534,10 +679,11 @@ async function mapIGDBGame(igdb) {
     rating:        igdb.rating ? Math.round(igdb.rating) / 10 : null,
     platforms,
     trending:      "Not Trending",
-    link:          apkLink || "",  // ✅ real APKPure direct download link
+    link:          apkLink || "",
     video:         trailer?.url || "",
     trailer:       trailer || undefined,
-    images:        imagesArr,
+    images:        prioritiseVideos(imagesArr),
+    othername,                              // ✅ all known aliases
     importSource:  "igdb",
     externalId:    String(igdb.id),
     lastImportedAt: new Date(),
@@ -590,6 +736,18 @@ async function upsertGame(doc) {
         { _id: existing._id },
         { $push: { images: { $each: newImages } } }
       );
+    }
+
+    // ✅ Merge othername aliases — add any new ones without duplicating
+    if (doc.othername?.length) {
+      const existingNames = new Set((existing.othername || []).map(n => n.toLowerCase()));
+      const newNames = doc.othername.filter(n => !existingNames.has(n.toLowerCase()));
+      if (newNames.length > 0) {
+        await games.updateOne(
+          { _id: existing._id },
+          { $push: { othername: { $each: newNames } } }
+        );
+      }
     }
 
     await games.updateOne({ _id: existing._id }, { $set: updateFields });

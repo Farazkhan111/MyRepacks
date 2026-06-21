@@ -6,6 +6,8 @@ const Anthropic  = require("@anthropic-ai/sdk");
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+const { fetchGameAliases } = require("./helpers");
+
 // ── Headers ──────────────────────────────────────────────────────
 const BROWSER_HEADERS = {
   "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -346,7 +348,7 @@ function parsePCGame(html, url) {
   if (magnet && !downloadLinks.some(l => l.url === magnet))
     downloadLinks.unshift({ label: "Magnet link", url: magnet });
 
-  return { title, cover, description, info, screenshots, downloadLinks, magnet, sourceUrl: url, platform: "PC" };
+  return { title, cover, description, info, screenshots, downloadLinks, magnet, sourceUrl: url, platform: "PC", othername: [] };
 }
 
 // ── Parse Mobile game HTML ───────────────────────────────────────
@@ -407,6 +409,7 @@ function parseMobileGame(html, url) {
     magnet:       null,
     sourceUrl:    url,
     platform:     "Mobile",
+    othername:    [],
   };
 }
 
@@ -493,6 +496,9 @@ exports.ScrapeGame = async (req, res) => {
 
     // ── YouTube trailer ───────────────────────────────────────
     data.trailer = await fetchYouTubeTrailer(data.title, mobile ? "Mobile" : "PC");
+
+    // ── Alternative / search names (othername) ────────────────
+    data.othername = await fetchGameAliases(data.title, mobile ? "Mobile" : "PC");
 
     res.json({ success: true, data });
   } catch (err) {

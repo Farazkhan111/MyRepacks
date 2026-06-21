@@ -69,7 +69,13 @@ export default function ShowGames() {
   const getUpdatedAt = (g) => g.updatedAt ? new Date(g.updatedAt) : getCreatedAt(g);
 
   const tableRows = games
-    .filter(g => filter === "All" || g.platform === filter || (!g.platform && filter === "PC"))
+    .filter(g => {
+      if (filter === "All")      return true;
+      if (filter === "Trending") return g.trending === "Trending";
+      if (filter === "PC")       return !g.platform || g.platform === "PC";
+      if (filter === "Mobile")   return g.platform === "Mobile";
+      return true;
+    })
     .sort((a, b) => {
       if (sort === "newest")   return getCreatedAt(b) - getCreatedAt(a);
       if (sort === "oldest")   return getCreatedAt(a) - getCreatedAt(b);
@@ -210,9 +216,10 @@ export default function ShowGames() {
 
             <div className="platform-filter-tabs">
               {[
-                { key: "All",    label: `All (${games.length})` },
-                { key: "PC",     label: `💻 PC (${pcCount})` },
-                { key: "Mobile", label: `📱 Mobile (${mobileCount})` },
+                { key: "All",      label: `All (${games.length})` },
+                { key: "PC",       label: `💻 PC (${pcCount})` },
+                { key: "Mobile",   label: `📱 Mobile (${mobileCount})` },
+                { key: "Trending", label: `🔥 Trending (${trendingCount})` },
               ].map(t => (
                 <button key={t.key}
                   className={`platform-tab-btn ${filter === t.key ? "active" : ""}`}

@@ -29,7 +29,6 @@ const INFO_MAP = {
 
 const SOURCE_BADGE = { steam: "🎮 Steam", playstore: "▶ Play Store", ai: "🤖 AI", web: "🌐 Web" };
 
-/** Extract YouTube video ID from any YT URL */
 function getYouTubeId(ytUrl) {
   if (!ytUrl) return null;
   const patterns = [
@@ -79,7 +78,7 @@ export default function GameScraper() {
   const [imgLoading,      setImgLoading]     = useState(false);
   const [imgResults,      setImgResults]     = useState([]);
   const [selectedImages,  setSelectedImages] = useState({ cover: "", hero: "" });
-  const [selectedShots,   setSelectedShots]  = useState([]);   // screenshots chosen to save with the game
+  const [selectedShots,   setSelectedShots]  = useState([]);
 
   const [descQuery,       setDescQuery]      = useState("");
   const [descLoading,     setDescLoading]    = useState(false);
@@ -90,9 +89,12 @@ export default function GameScraper() {
   // ── Trailer state ─────────────────────────────────────────────
   const [trailerQuery,    setTrailerQuery]   = useState("");
   const [trailerLoading,  setTrailerLoading] = useState(false);
-  const [trailerUrl,      setTrailerUrl]     = useState("");   // full YT URL
+  const [trailerUrl,      setTrailerUrl]     = useState("");
   const [trailerError,    setTrailerError]   = useState("");
-  const [manualTrailer,   setManualTrailer]  = useState("");   // manual paste input
+  const [manualTrailer,   setManualTrailer]  = useState("");
+
+  // ── Aliases state ─────────────────────────────────────────────
+  const [aliasInput,      setAliasInput]     = useState("");
 
   // ── Scrape ───────────────────────────────────────────────────
   async function handleScrape() {
@@ -104,6 +106,7 @@ export default function GameScraper() {
     setSelectedShots([]);
     setDescResults([]); setSelectedDesc("");
     setTrailerUrl(""); setTrailerError(""); setManualTrailer("");
+    setAliasInput("");
 
     try {
       const res  = await fetch(`${API}/scrape`, {
@@ -117,16 +120,13 @@ export default function GameScraper() {
       setImgQuery(json.data.title || "");
       setDescQuery(json.data.title || "");
       setTrailerQuery(json.data.title || "");
+
       if (json.data.description)
         setDescResults([{ text: json.data.description, source: json.data.descriptionSource || "web" }]);
 
-      // Auto-select up to 5 scraped screenshots by default — admin can
-      // deselect any they don't want before sending to Add Game.
-      if (Array.isArray(json.data.screenshots) && json.data.screenshots.length) {
+      if (Array.isArray(json.data.screenshots) && json.data.screenshots.length)
         setSelectedShots(json.data.screenshots.slice(0, 5));
-      }
 
-      // Auto-fill trailer if scraper returned one
       if (json.data.trailer) setTrailerUrl(json.data.trailer);
 
       setTab("info");
@@ -214,9 +214,9 @@ export default function GameScraper() {
       gplatform:    game.platform || detectedPlat,
       gcat:         inferCategory(game.info?.Genres || game.info?.Category || ""),
       glink:        game.downloadLinks?.[0]?.url || "",
-      gvideo:       trailerUrl || "",   // ← YouTube trailer URL
-      gscreenshots: selectedShots,      // ← screenshots chosen on the Screenshots tab
-      othername:    [],
+      gvideo:       trailerUrl || "",
+      gscreenshots: selectedShots,
+      othername:    Array.isArray(game.othername) ? game.othername : [],
     };
     sessionStorage.setItem("scraped_game", JSON.stringify(payload));
     setCopied(true);
@@ -236,8 +236,8 @@ export default function GameScraper() {
     return "";
   }
 
-  const platformColor = detectedPlat === "Mobile" ? "#a78bfa" : "#60a5fa";
-  const platformIcon  = detectedPlat === "Mobile" ? "📱" : "💻";
+  const platformColor  = detectedPlat === "Mobile" ? "#a78bfa" : "#60a5fa";
+  const platformIcon   = detectedPlat === "Mobile" ? "📱" : "💻";
   const trailerVideoId = getYouTubeId(trailerUrl);
 
   return (
@@ -327,6 +327,9 @@ export default function GameScraper() {
                   {trailerUrl
                     ? <span className="chip chip-green">▶ Trailer ready</span>
                     : <span className="chip chip-amber">⚠️ No trailer</span>}
+                  {Array.isArray(game.othername) && game.othername.length > 0
+                    ? <span className="chip chip-green">🔤 {game.othername.length} alias{game.othername.length > 1 ? "es" : ""}</span>
+                    : <span className="chip chip-amber">⚠️ No aliases</span>}
                 </div>
 
                 <button className={`scraper-use-btn ${copied ? "copied" : ""}`} onClick={sendToAddGame}>
@@ -344,6 +347,7 @@ export default function GameScraper() {
                 { id: "downloads",   label: `⬇ Downloads (${game.downloadLinks?.length || 0})` },
                 { id: "screenshots", label: `🖼 Screenshots (${selectedShots.length}/${game.screenshots?.length || 0})` },
                 { id: "images",      label: "🔍 Image Search" },
+                { id: "aliases",     label: `🔤 Aliases (${Array.isArray(game.othername) ? game.othername.length : 0})` },
               ].map(t => (
                 <button key={t.id} className={`scraper-tab ${tab === t.id ? "active" : ""}`}
                   onClick={() => setTab(t.id)}>{t.label}</button>
@@ -417,8 +421,6 @@ export default function GameScraper() {
               {/* ── Trailer ── */}
               {tab === "trailer" && (
                 <div className="img-search-panel">
-
-                  {/* Search row */}
                   <div className="img-search-row">
                     <input
                       className="img-search-input"
@@ -441,18 +443,12 @@ export default function GameScraper() {
                     <div className="scraper-error" style={{ marginTop: 10 }}>⚠️ {trailerError}</div>
                   )}
 
-                  {/* Found trailer preview */}
                   {trailerVideoId && (
                     <div className="trailer-preview-wrap">
                       <div className="trailer-preview-label">
                         <span className="chip chip-green">▶ Trailer Selected</span>
-                        <a
-                          href={trailerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="scraper-source-link"
-                          style={{ fontSize: 12, marginLeft: 10 }}
-                        >
+                        <a href={trailerUrl} target="_blank" rel="noopener noreferrer"
+                          className="scraper-source-link" style={{ fontSize: 12, marginLeft: 10 }}>
                           {trailerUrl}
                         </a>
                       </div>
@@ -465,17 +461,12 @@ export default function GameScraper() {
                           className="trailer-iframe"
                         />
                       </div>
-                      <button
-                        className="img-deselect"
-                        style={{ marginTop: 10 }}
-                        onClick={() => { setTrailerUrl(""); }}
-                      >
+                      <button className="img-deselect" style={{ marginTop: 10 }} onClick={() => setTrailerUrl("")}>
                         ✕ Remove Trailer
                       </button>
                     </div>
                   )}
 
-                  {/* Manual paste */}
                   <div className="trailer-manual-wrap">
                     <p className="trailer-manual-label">Or paste a YouTube URL manually:</p>
                     <div className="img-search-row">
@@ -487,11 +478,7 @@ export default function GameScraper() {
                         onChange={e => setManualTrailer(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && applyManualTrailer()}
                       />
-                      <button
-                        className="img-search-btn"
-                        onClick={applyManualTrailer}
-                        disabled={!manualTrailer.trim()}
-                      >
+                      <button className="img-search-btn" onClick={applyManualTrailer} disabled={!manualTrailer.trim()}>
                         ✓ Apply
                       </button>
                     </div>
@@ -613,6 +600,77 @@ export default function GameScraper() {
                       ))}
                     </div>
                   ) : !imgLoading && <p className="scraper-empty">Search for a game to see images.</p>}
+                </div>
+              )}
+
+              {/* ── Aliases ── */}
+              {tab === "aliases" && (
+                <div className="img-search-panel">
+                  <p style={{ color: "#aaa", fontSize: 13, marginBottom: 14 }}>
+                    These are the alternate names people use to search for this game.
+                    They will be saved to <code style={{ color: "#a78bfa" }}>othername</code> in the database.
+                    Add or remove any before sending to Add Game.
+                  </p>
+
+                  <div className="addgames-alias-box" style={{ marginBottom: 14 }}>
+                    {(game.othername || []).map((n, i) => (
+                      <span key={i} className="addgames-tag">
+                        {n}
+                        <button
+                          type="button"
+                          onClick={() => setGame(prev => ({
+                            ...prev,
+                            othername: prev.othername.filter((_, idx) => idx !== i),
+                          }))}
+                        >×</button>
+                      </span>
+                    ))}
+                    {(!game.othername || game.othername.length === 0) && (
+                      <span style={{ color: "#666", fontSize: 13 }}>No aliases found — add some manually below.</span>
+                    )}
+                  </div>
+
+                  <div className="img-search-row">
+                    <input
+                      className="img-search-input"
+                      type="text"
+                      placeholder="Type an alias and press Enter or Add…"
+                      value={aliasInput}
+                      onChange={e => setAliasInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && aliasInput.trim()) {
+                          e.preventDefault();
+                          const v = aliasInput.trim();
+                          if (!(game.othername || []).includes(v)) {
+                            setGame(prev => ({
+                              ...prev,
+                              othername: [...(prev.othername || []), v],
+                            }));
+                          }
+                          setAliasInput("");
+                        }
+                      }}
+                    />
+                    <button
+                      className="img-search-btn"
+                      disabled={!aliasInput.trim()}
+                      onClick={() => {
+                        const v = aliasInput.trim();
+                        if (v && !(game.othername || []).includes(v)) {
+                          setGame(prev => ({
+                            ...prev,
+                            othername: [...(prev.othername || []), v],
+                          }));
+                        }
+                        setAliasInput("");
+                      }}
+                    >+ Add</button>
+                  </div>
+
+                  <p style={{ color: "#555", fontSize: 12, marginTop: 12 }}>
+                    💡 Aliases are automatically fetched from RAWG, IGDB, Steam, and Play Store when you scrape.
+                    Common ones include: abbreviations (e.g. <em>COD</em>), regional titles, subtitle-stripped names.
+                  </p>
                 </div>
               )}
 

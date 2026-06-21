@@ -704,6 +704,123 @@ async function fetchRAWGData(gameName) {
   return null;
 }
 
+// ══════════════════════════════════════════════════════════════════
+//  ALIAS FETCHER
+//  Collects all known alternative / search names for a game so
+//  people can find it by any name they know it by.
+//
+//  Sources (in order, merged + deduped):
+//   1. RAWG  — alternative_names field on the game detail endpoint
+//   2. IGDB  — alternative_names sub-resource
+//   3. Steam — search result title variations
+//   4. Derived variants — subtitle splits, common abbreviations
+//
+//  Returns: string[]  (never throws — always resolves with [])
+// ══════════════════════════════════════════════════════════════════
+
+async function fetchGameAliases(gameName, platform = "PC") {
+  const RAWG_KEY_ALIAS = process.env.RAWG_API_KEY;
+  const seen  = new Set([gameName.toLowerCase().trim()]);
+  const names = [];
+
+  function add(raw) {
+    if (!raw || typeof raw !== "string") return;
+    const v = raw.trim();
+    if (!v || v.length < 2) return;
+    const key = v.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    names.push(v);
+  }
+
+  // ── Derived variants (always run, no API needed) ─────────────
+  // Strip subtitle after " – " or " : " or " - "
+  const subSplit = gameName.split(/\s*[–:]\s*/);
+  if (subSplit.length > 1) add(subSplit[0].trim());
+
+  // Strip trailing Roman numeral / year e.g. "Call of Duty 4"
+  const noTrail = gameName.replace(/\s+[IVX\d]+$/, "").trim();
+  if (noTrail !== gameName) add(noTrail);
+
+  // Build common abbreviation from first letters of each word
+  const words = gameName.split(/\s+/).filter(w => w.length > 2);
+  if (words.length >= 3) {
+    const abbr = words.map(w => w[0].toUpperCase()).join("");
+    if (abbr.length >= 3) add(abbr);
+  }
+
+  // ── 1. RAWG alternative names ────────────────────────────────
+  try {
+    const searchRes = await axios.get("https://api.rawg.io/api/games", {
+      params: { key: RAWG_KEY_ALIAS, search: gameName, page_size: 3 },
+      timeout: 8000,
+    });
+    const match = (searchRes.data?.results || []).find(g =>
+      titleMatches(gameName, g.name)
+    );
+    if (match) {
+      // Fetch detail for alternative_names
+      try {
+        const detail = await axios.get(
+          `https://api.rawg.io/api/games/${match.id}`,
+          { params: { key: RAWG_KEY_ALIAS }, timeout: 8000 }
+        );
+        (detail.data?.alternative_names || []).forEach(n => add(n));
+        // Also grab name_original (localised / non-English title)
+        if (detail.data?.name_original) add(detail.data.name_original);
+      } catch (_) {}
+    }
+  } catch (_) {}
+
+  // ── 2. IGDB alternative_names ────────────────────────────────
+  try {
+    const token = await getIGDBToken();
+    // First get the game id
+    const searchRes = await axios.post(
+      "https://api.igdb.com/v4/games",
+      `fields name,alternative_names.name,alternative_names.comment; search "${gameName.replace(/"/g, "")}"; limit 3;`,
+      {
+        headers: {
+          "Client-ID":    IGDB_CLIENT_ID,
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "text/plain",
+        },
+        timeout: 8000,
+      }
+    );
+    const igdbMatch = (searchRes.data || []).find(g => titleMatches(gameName, g.name));
+    if (igdbMatch) {
+      (igdbMatch.alternative_names || []).forEach(an => add(an.name));
+    }
+  } catch (_) {}
+
+  // ── 3. Steam search title variations ─────────────────────────
+  try {
+    const steamSearch = await axios.get(
+      `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=english&cc=US`,
+      { timeout: 8000 }
+    );
+    const items = steamSearch.data?.items || [];
+    const steamMatch = items.find(i => titleMatches(gameName, i.name));
+    if (steamMatch && steamMatch.name !== gameName) add(steamMatch.name);
+  } catch (_) {}
+
+  // ── 4. Google Play search title (Mobile only) ─────────────────
+  if (platform === "Mobile") {
+    try {
+      const psRes = await axios.get(
+        `https://play.google.com/store/search?q=${encodeURIComponent(gameName)}&c=apps&hl=en`,
+        { headers: { "User-Agent": "Mozilla/5.0" }, timeout: 8000 }
+      );
+      // Extract og:title which is sometimes the localised app name
+      const ogMatch = psRes.data.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i);
+      if (ogMatch?.[1]) add(ogMatch[1].replace(/ - Apps on Google Play/i, "").trim());
+    } catch (_) {}
+  }
+
+  return names;
+}
+
 module.exports = {
   getFitgirlLink,
   getApkPureLink,
@@ -714,6 +831,7 @@ module.exports = {
   fetchSteamGridDBBanner,
   fetchSteamStoreBanner,
   buildSearchVariants,
+  fetchGameAliases,     // ← alias / othername fetcher
   // ── New exports used by AutoUpdateController ──
   checkImageUrl,       // ← tests if a URL is a reachable image
   fetchApkPureIcon,    // ← fetches hotlink-safe icon from APKPure CDN

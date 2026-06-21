@@ -14,7 +14,7 @@ const cheerio     = require("cheerio");
 const games       = require("../model/allgamesmodel");
 const ImportState = require("../model/importstate");
 
-const { fetchBannerCoverArt, buildSearchVariants, isJunkScreenshotUrl } = require("./helpers");
+const { fetchBannerCoverArt, buildSearchVariants, isJunkScreenshotUrl, fetchGameAliases } = require("./helpers");
 
 const YT_API_KEY  = process.env.YOUTUBE_API_KEY;
 
@@ -141,9 +141,36 @@ async function fetchBestCovers(gameName) {
 
 // ══════════════════════════════════════════════════════════════════
 //  FITGIRL PAGE LIST SCRAPER
+//  Priority order:
+//    1. Popular Repacks tag (most downloaded / most visited posts)
+//    2. Normal chronological pages as fallback
 // ══════════════════════════════════════════════════════════════════
 
+async function scrapeFitgirlPopularPage(pageNum) {
+  // FitGirl's "popular" tag shows posts ordered by view count / comment count
+  const url = pageNum === 1
+    ? `${BASE_URL}/?tag=popular-repacks`
+    : `${BASE_URL}/page/${pageNum}/?tag=popular-repacks`;
+  try {
+    const { data: html } = await axios.get(url, { headers: HEADERS, timeout: 20000 });
+    const $     = cheerio.load(html);
+    const links = [];
+    $("article").each((_, el) => {
+      const href = $(el).find("h1.entry-title a, h2.entry-title a").attr("href");
+      if (href && href.startsWith(BASE_URL)) links.push(href);
+    });
+    return links;
+  } catch (_) {
+    return [];
+  }
+}
+
 async function scrapeFitgirlListPage(pageNum) {
+  // First try the popular-repacks tag for this page number
+  const popularLinks = await scrapeFitgirlPopularPage(pageNum);
+  if (popularLinks.length > 0) return popularLinks;
+
+  // Fallback to normal chronological listing
   const url = pageNum === 1 ? `${BASE_URL}/` : `${BASE_URL}/page/${pageNum}/`;
   try {
     const { data: html } = await axios.get(url, { headers: HEADERS, timeout: 20000 });
@@ -242,10 +269,28 @@ async function scrapeFitgirlPost(postUrl) {
     }));
 
     // ── Torrent / magnet link ──────────────────────────────────
+    // Priority: 1) magnet in raw HTML  2) magnet in <a href>  3) .torrent link
+    //           4) known torrent host link  5) null  (never fall back to postUrl)
     let torrentLink = null;
-    const magnetMatch = html.match(/magnet:\?[^\s"'<>]+/);
-    if (magnetMatch) torrentLink = magnetMatch[0];
 
+    // 1. Magnet anywhere in raw HTML (plain or URL-encoded)
+    const magnetMatch = html.match(/magnet:\?xt=urn:btih:[A-Fa-f0-9]{40,}[^\s"'<>]*/);
+    if (magnetMatch) {
+      torrentLink = decodeURIComponent(magnetMatch[0]);
+    }
+
+    // 2. Magnet in <a href> (covers onclick-injected or JS-rendered links)
+    if (!torrentLink) {
+      $("a[href]").each((_, el) => {
+        if (torrentLink) return;
+        const href = ($(el).attr("href") || "").trim();
+        if (href.startsWith("magnet:")) {
+          torrentLink = decodeURIComponent(href);
+        }
+      });
+    }
+
+    // 3. Direct .torrent file link
     if (!torrentLink) {
       content.find("a[href]").each((_, el) => {
         if (torrentLink) return;
@@ -254,6 +299,7 @@ async function scrapeFitgirlPost(postUrl) {
       });
     }
 
+    // 4. Known torrent-host link (last resort before giving up)
     if (!torrentLink) {
       const TORRENT_HOSTS = ["1337x", "rarbg", "rutracker", "limetorrents", "torrentgalaxy", "kickass"];
       content.find("a[href]").each((_, el) => {
@@ -266,7 +312,7 @@ async function scrapeFitgirlPost(postUrl) {
       });
     }
 
-    if (!torrentLink) torrentLink = postUrl;
+    // ✅ If still no link found, leave as null — do NOT fall back to postUrl
 
     let releaseDate = "";
     const timeEl = $("time.entry-date, time[datetime]").attr("datetime");
@@ -394,6 +440,18 @@ async function upsertGame(doc) {
     if (!existing.image  && doc.image)  updateFields.image  = doc.image;
     if (!existing.fimage && doc.fimage) updateFields.fimage = doc.fimage;
 
+    // ✅ Merge othername aliases — add any new ones without duplicating
+    if (doc.othername?.length) {
+      const existingNames = new Set((existing.othername || []).map(n => n.toLowerCase()));
+      const newNames = doc.othername.filter(n => !existingNames.has(n.toLowerCase()));
+      if (newNames.length > 0) {
+        await games.updateOne(
+          { _id: existing._id },
+          { $push: { othername: { $each: newNames } } }
+        );
+      }
+    }
+
     await games.updateOne({ _id: existing._id }, { $set: updateFields });
     return { status: "updated" };
   }
@@ -471,6 +529,8 @@ async function runFitgirlLoop() {
 
         fgCurrentGame.step = "fetching trailer";
         const trailer = await fetchYouTubeTrailer(post.name);
+        fgCurrentGame.step = "fetching aliases";
+        const othername = await fetchGameAliases(post.name, "PC");
         fgCurrentGame.step = "saving to DB";
 
         const category = mapCategory(post.genres);
@@ -479,6 +539,11 @@ async function runFitgirlLoop() {
         // cover/hero: external APIs only (SteamGridDB/Steam/IGDB/RAWG)
         // screenshots: external API screenshots + FitGirl post images as extras
         const finalImages = [];
+
+        // ✅ Video first — trailer at the very front of the images list
+        if (trailer?.url) {
+          finalImages.push({ type: "video", url: trailer.url, source: "youtube" });
+        }
 
         if (covers?.coverImage) {
           finalImages.push({ type: "cover", url: covers.coverImage, source: covers.source });
@@ -491,11 +556,20 @@ async function runFitgirlLoop() {
             finalImages.push({ type: "screenshot", url, source: covers.source });
         });
 
-        // FitGirl post images appended as extra screenshots — never as cover/hero
+        // FitGirl post images — scan for any video URLs, push video ones first among these
+        const fgStills = [];
+        const fgVideos = [];
         post.imagesDocs.forEach(img => {
-          if (!finalImages.find(i => i.url === img.url))
-            finalImages.push(img); // already typed "screenshot" from scrapeFitgirlPost
+          if (finalImages.find(i => i.url === img.url)) return;
+          if (/youtube\.com|youtu\.be|\.mp4|\.webm/i.test(img.url || "")) {
+            fgVideos.push({ ...img, type: "video" });
+          } else {
+            fgStills.push(img);
+          }
         });
+        // Insert any FitGirl video entries right after the trailer (position 1)
+        finalImages.splice(1, 0, ...fgVideos);
+        fgStills.forEach(img => finalImages.push(img));
 
         // ✅ cover and hero come ONLY from external APIs — null if not found
         // The auto-update job will fill these in later if they're missing
@@ -522,6 +596,7 @@ async function runFitgirlLoop() {
           video:         trailer?.url  || "",
           trailer:       trailer || undefined,
           images:        finalImages,
+          othername,                              // ✅ all known aliases
           importSource:  "fitgirl",
           externalId:    encodeURIComponent(post.name.toLowerCase().replace(/\s+/g, "-")),
           lastImportedAt: new Date(),
