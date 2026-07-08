@@ -240,7 +240,7 @@ export default function Collection() {
       setGames(res.data)
       setLoading(false)
     })
-  }, [])
+  })
 
   // ── Sync platform if user navigates from navbar while already on this page ──
   useEffect(() => {
@@ -285,7 +285,6 @@ export default function Collection() {
         <div className="collection-header-bg" />
         <div className="collection-header-content">
           <div className="section-eyebrow">
-            <span className="eyebrow-icon">🎮</span>
             <span>Full Library</span>
           </div>
           <h1 className="collection-title">
@@ -302,14 +301,14 @@ export default function Collection() {
           className={`platform-toggle-btn ${platform === 'PC' ? 'active' : ''}`}
           onClick={() => switchPlatform('PC')}
         >
-          💻 PC Games
+          PC Games
           <span className="platform-count">{pcCount}</span>
         </button>
         <button
           className={`platform-toggle-btn ${platform === 'Mobile' ? 'active' : ''}`}
           onClick={() => switchPlatform('Mobile')}
         >
-          📱 Mobile Games
+          Mobile Games
           <span className="platform-count">{mobileCount}</span>
         </button>
       </div>

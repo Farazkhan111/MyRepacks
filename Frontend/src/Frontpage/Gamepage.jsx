@@ -222,10 +222,21 @@ export default function Gamepage() {
         <div className="gp-hero-overlay" />
         <div className="gp-hero-scanlines" />
 
-        {/* Dynamic neon bottom glow strip */}
+        {/*
+          Dynamic neon bottom glow strip.
+          IMPORTANT: both gradient ends are transparent (0% and 100%),
+          with the accent colour only appearing mid-strip. The old
+          version started the colour AT 0% (the exact hero/page
+          boundary), which meant every game's extracted cover colour
+          painted a visible tinted line right at the seam — vivid
+          covers showed it clearly, muted covers didn't. Keeping both
+          edges transparent means no colour ever touches that
+          boundary pixel, for any game, regardless of how saturated
+          its cover art is.
+        */}
         {palette && (
           <div className="gp-hero-glow-strip"
-            style={{ background: `linear-gradient(to top, ${glow} 0%, transparent 100%)` }} />
+            style={{ background: `linear-gradient(to top, transparent 0%, ${glowSm} 45%, transparent 100%)` }} />
         )}
       </div>
 

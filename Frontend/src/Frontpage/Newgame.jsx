@@ -12,7 +12,6 @@ export default function Newgame() {
         {/* Header */}
         <div className="section-header">
           <div className="section-eyebrow">
-            <span className="eyebrow-icon">🦕</span>
             <span>Featured Release</span>
           </div>
           <h2 className="section-title">

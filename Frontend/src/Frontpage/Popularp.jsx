@@ -20,7 +20,7 @@ function TrendingCard({ game, index, onClick }) {
 
         {/* Badges */}
         <div className="game-card-badge-row">
-          <span className="badge-fire">🔥 Trending</span>
+          <span className="badge-fire">Trending</span>
           {index < 3 && <span className="badge-rank">#{index + 1}</span>}
         </div>
       </div>
@@ -53,7 +53,6 @@ export default function Popularp() {
       {/* Section header */}
       <Reveal className="section-header">
         <div className="section-eyebrow">
-          <span className="eyebrow-icon">🔥</span>
           <span>Hot Right Now</span>
         </div>
         <h2 className="section-title">

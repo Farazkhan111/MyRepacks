@@ -36,7 +36,6 @@ export default function Latest() {
         {/* Section header */}
         <div className="section-header">
           <div className="section-eyebrow">
-            <span className="eyebrow-icon">⚡</span>
             <span>Just Added</span>
           </div>
           <h2 className="section-title">
@@ -51,14 +50,14 @@ export default function Latest() {
             className={`platform-toggle-btn ${platform === 'PC' ? 'active' : ''}`}
             onClick={() => setPlatform('PC')}
           >
-            💻 PC Games
+            PC Games
             <span className="platform-count">{pcCount}</span>
           </button>
           <button
             className={`platform-toggle-btn ${platform === 'Mobile' ? 'active' : ''}`}
             onClick={() => setPlatform('Mobile')}
           >
-            📱 Mobile Games
+            Mobile Games
             <span className="platform-count">{mobileCount}</span>
           </button>
         </div>

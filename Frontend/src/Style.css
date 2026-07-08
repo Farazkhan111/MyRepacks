@@ -1,5 +1,5 @@
 body {
-  background-color: #020612 !important;
+  background-color: var(--bg-base) !important;
 }
 
 /* ============================================================
@@ -17,7 +17,6 @@ body {
 
 /* ---- Root variables ---- */
 :root {
-  --bg-base:        #07070f;
   --bg-card:        rgba(12, 12, 22, 0.9);
   --bg-glass:       rgba(8, 8, 18, 0.85);
 
@@ -53,6 +52,14 @@ body {
   --bg-deep-1:      #050816;
   --bg-deep-2:      #07101F;
   --bg-deep-3:      #0B1220;
+
+  /* bg-base now literally equals bg-deep-1 — the actual color the
+     fixed .cyber-bg canvas renders behind the page — instead of a
+     separately-guessed hex. This is what everything below the hero
+     is really showing, so overlays should fade to this, not to an
+     unrelated flat color. */
+  --bg-base:        var(--bg-deep-1);
+  --bg-base-rgb:    5, 8, 22;
 }
 
 /* ---- Base ---- */
@@ -622,7 +629,7 @@ body.cyber-cursor-active * { cursor: none !important; }
 .hero-section {
   position: relative; min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
-  overflow: hidden; padding: 100px 24px 80px; background: #07070f;
+  overflow: hidden; padding: 100px 24px 80px; background: var(--bg-base);
 }
 .hero-bg-grid {
   position: absolute; inset: 0;
@@ -890,7 +897,7 @@ body.cyber-cursor-active * { cursor: none !important; }
 
 .game-card-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(to bottom, transparent 50%, rgba(7,7,15,0.85) 100%);
+  background: linear-gradient(to bottom, transparent 50%, rgba(var(--bg-base-rgb), 0.85) 100%);
 }
 .game-card-badge-row {
   position: absolute; top: 10px; left: 10px; right: 10px;
@@ -1050,7 +1057,7 @@ body.cyber-cursor-active * { cursor: none !important; }
 .spotlight-img-wrap:hover .spotlight-img { transform: scale(1.03); }
 .spotlight-img-glow {
   position: absolute; inset: 0;
-  background: linear-gradient(to bottom, transparent 60%, rgba(7,7,15,0.85) 100%);
+  background: linear-gradient(to bottom, transparent 60%, rgba(var(--bg-base-rgb), 0.85) 100%);
   pointer-events: none;
 }
 .spotlight-img-badge {
@@ -1273,7 +1280,7 @@ body.cyber-cursor-active * { cursor: none !important; }
 .col-card-img-wrap { position: relative; aspect-ratio: 16 / 9; overflow: hidden; width: 100%; }
 .col-card-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; }
 .col-card:hover .col-card-img { transform: scale(1.06); }
-.col-card-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 40%, rgba(7,7,15,0.8) 100%); }
+.col-card-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 40%, rgba(var(--bg-base-rgb), 0.8) 100%); }
 .col-card-cat {
   position: absolute; top: 10px; left: 10px;
   font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px;
@@ -1324,8 +1331,8 @@ body.cyber-cursor-active * { cursor: none !important; }
    The iframe is already scaled/cropped above; these sit on top as a
    second layer of insurance so neither ever shows on the card. */
 .col-card-yt-mask { position: absolute; pointer-events: none; z-index: 5; }
-.col-card-yt-mask-top    { top: 0; left: 0; right: 0; height: 16%; background: linear-gradient(to bottom, rgba(7,7,15,0.85), transparent); }
-.col-card-yt-mask-corner { bottom: 0; right: 0; width: 22%; height: 16%; background: rgba(7,7,15,0.9); border-radius: 10px 0 0 0; }
+.col-card-yt-mask-top    { top: 0; left: 0; right: 0; height: 16%; background: linear-gradient(to bottom, rgba(var(--bg-base-rgb), 0.85), transparent); }
+.col-card-yt-mask-corner { bottom: 0; right: 0; width: 22%; height: 16%; background: rgba(var(--bg-base-rgb), 0.9); border-radius: 10px 0 0 0; }
 .col-card-video-badge {
   position: absolute; bottom: 10px; right: 10px;
   display: flex; align-items: center; gap: 5px;
@@ -1347,7 +1354,14 @@ body.cyber-cursor-active * { cursor: none !important; }
 .gp-page { min-height: 100vh; padding-bottom: 80px; }
 .gp-hero { position: relative; height: 420px; overflow: hidden; }
 .gp-hero-bg { position: absolute; inset: -20px; background-size: cover; background-position: center; filter: blur(8px) brightness(0.35); transform: scale(1.05); z-index: 0; }
-.gp-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(7,7,15,0.2) 0%, rgba(7,7,15,0.6) 60%, rgba(7,7,15,1) 100%); z-index: 2; }
+.gp-hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom,
+    rgba(var(--bg-base-rgb), 0.2) 0%,
+    rgba(var(--bg-base-rgb), 0.6) 60%,
+    rgba(var(--bg-base-rgb), 1) 100%);
+  z-index: 2;
+}
 .gp-hero-scanlines { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px); pointer-events: none; z-index: 3; }
 .gp-main { max-width: 860px; margin: -120px auto 0; padding: 0 24px; position: relative; z-index: 2; }
 .gp-identity-row { display: flex; gap: 28px; align-items: flex-end; margin-bottom: 32px; }
@@ -1581,21 +1595,28 @@ body.cyber-cursor-active * { cursor: none !important; }
   position: absolute;
   top: 50%;
   left: 50%;
-  /* over-size to hide YouTube letterbox bars */
+  /* over-size to hide YouTube letterbox bars, plus extra scale to
+     hide the soft edge the CSS blur filter introduces */
   width: 177.78vh;
   height: 100vh;
-  min-width: 100%;
-  min-height: 100%;
-  transform: translate(-50%, -50%);
+  min-width: 115%;
+  min-height: 115%;
+  transform: translate(-50%, -50%) scale(1.15);
   border: none;
   pointer-events: none;
+  /* backdrop-filter on the overlay below can't reliably blur iframe/
+     video content across browsers (it renders in its own compositing
+     layer), which is why the trailer's studio-logo intro was showing
+     through almost unblurred. Filtering the iframe itself works
+     consistently instead. */
+  filter: blur(18px) brightness(0.35) saturate(1.05);
 }
-/* Blur + darken over the video — same treatment as gp-hero-bg */
+/* Extra darken/scrim on top — no longer doing the blurring work itself,
+   just evens out contrast so the hero text stays readable */
 .gp-trailer-blur-overlay {
   position: absolute;
   inset: 0;
-  backdrop-filter: blur(8px) brightness(0.32);
-  -webkit-backdrop-filter: blur(8px) brightness(0.32);
+  background: rgba(2, 3, 10, 0.35);
   z-index: 1;
 }
 

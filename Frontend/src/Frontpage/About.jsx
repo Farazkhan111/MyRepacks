@@ -44,7 +44,6 @@ export default function Aboutp() {
         {/* Hero text */}
         <div className="about-hero">
           <div className="section-eyebrow">
-            <span className="eyebrow-icon">🎮</span>
             <span>Our Story</span>
           </div>
           <h1 className="about-title">
