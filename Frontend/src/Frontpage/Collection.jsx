@@ -240,7 +240,7 @@ export default function Collection() {
       setGames(res.data)
       setLoading(false)
     })
-  })
+  }, [])
 
   // ── Sync platform if user navigates from navbar while already on this page ──
   useEffect(() => {
