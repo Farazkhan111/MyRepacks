@@ -134,7 +134,14 @@ export default function Navbar() {
                     key={i}
                     onClick={() => setSearchOpen(false)}
                   >
-                    <img src={game.image} alt={game.name} className="search-result-img" />
+                    <img
+                      src={game.image || game.fimage}
+                      alt={game.name}
+                      className="search-result-img"
+                      onError={(e) => {
+                        if (game.fimage && e.target.src !== game.fimage) e.target.src = game.fimage
+                      }}
+                    />
                     <div className="search-result-info">
                       <span className="search-result-name">{game.name}</span>
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>

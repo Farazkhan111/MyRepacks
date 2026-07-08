@@ -15,7 +15,14 @@ function TrendingCard({ game, index, onClick }) {
     >
       {/* Image */}
       <div className="game-card-img-wrap">
-        <img src={game.image} alt={game.name} className="game-card-img" />
+        <img
+          src={game.image || game.fimage}
+          alt={game.name}
+          className="game-card-img"
+          onError={(e) => {
+            if (game.fimage && e.target.src !== game.fimage) e.target.src = game.fimage
+          }}
+        />
         <div className="game-card-overlay" />
 
         {/* Badges */}

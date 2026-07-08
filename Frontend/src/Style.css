@@ -1549,38 +1549,8 @@ body.cyber-cursor-active * { cursor: none !important; }
   .game-card::before, .col-card::before { display: none; }
 }
 /* ================================================================
-   GAMEPAGE — TRAILER HERO + DYNAMIC COLOUR SYSTEM
+   GAMEPAGE — TRAILER HERO (fixed cyan/purple theme, same for every game)
    ================================================================ */
-
-/* ── Ambient orbs (behind everything) ──────────────────────────── */
-.gp-ambient {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
-}
-.gp-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  animation: gp-orb-drift 12s ease-in-out infinite alternate;
-}
-.gp-orb-1 {
-  width: 500px; height: 500px;
-  top: -100px; left: -80px;
-  animation-delay: 0s;
-}
-.gp-orb-2 {
-  width: 400px; height: 400px;
-  bottom: 10%; right: -60px;
-  animation-delay: -5s;
-  animation-direction: alternate-reverse;
-}
-@keyframes gp-orb-drift {
-  from { transform: translate(0, 0) scale(1); }
-  to   { transform: translate(40px, 30px) scale(1.12); }
-}
 
 /* ── Trailer wrapper — purely decorative background, same as fimage ── */
 /* ALL trailer layers use z-index 0 so gp-main (z-index 2) sits on top */
@@ -1620,26 +1590,7 @@ body.cyber-cursor-active * { cursor: none !important; }
   z-index: 1;
 }
 
-/* ── Cover image neon border glow ───────────────────────────────── */
-.gp-cover-img {
-  transition: box-shadow 0.6s ease, border-color 0.6s ease;
-}
-
-/* ── Screenshot thumb — use CSS var for dynamic hover ───────────── */
-.gp-shot-thumb:hover {
-  border-color: var(--thumb-hover-border, rgba(0,229,255,0.4));
-}
-
-/* ── Neon glow strip at hero bottom edge ────────────────────────── */
-.gp-hero-glow-strip {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 120px;
-  z-index: 5;
-  pointer-events: none;
-}
-
-/* ── Download button dynamic colours ────────────────────────────── */
+/* ── Download button hover ──────────────────────────────────────── */
 .gp-dl-btn {
   transition: all 0.25s ease;
 }
@@ -1655,6 +1606,4 @@ body.cyber-cursor-active * { cursor: none !important; }
     height: 56.25vw;
     min-height: 280px;
   }
-  .gp-orb-1 { width: 260px; height: 260px; }
-  .gp-orb-2 { width: 200px; height: 200px; }
 }

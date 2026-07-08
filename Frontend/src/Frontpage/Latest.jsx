@@ -85,7 +85,14 @@ export default function Latest() {
 
               {/* Thumbnail */}
               <div className="latest-item-thumb">
-                <img src={game.image} alt={game.name} />
+                <img
+                  src={game.image || game.fimage}
+                  alt={game.name}
+                  onError={(e) => {
+                    if (game.fimage && e.target.src !== game.fimage) e.target.src = game.fimage
+                    else e.target.style.visibility = 'hidden'
+                  }}
+                />
               </div>
 
               {/* Info */}
